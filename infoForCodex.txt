@@ -27,6 +27,7 @@ Note operative
 - Backend: `backend/` con Prisma e migrazioni.
 - Frontend: `frontend/` con pagine App Router.
 - Avvio: vedere `install.txt`.
+ - Flusso multi‑tab: un branch per tab; sincronizzare su `develop`.
 
 Stato branch
 - Branch attuale: feature/gestione-calendario.
@@ -37,3 +38,4 @@ Prossimo obiettivo
 
 Changelog
 - 2026-02-02: Creato infoForCodex.txt con descrizione iniziale del progetto.
+- 2026-02-02: Aggiunte note sul flusso multi‑tab e branching parallelo.
