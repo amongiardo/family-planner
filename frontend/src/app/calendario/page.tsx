@@ -22,6 +22,7 @@ export default function CalendarioPage() {
   });
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [selectedMealType, setSelectedMealType] = useState<MealType>('pranzo');
   const [selectedDishId, setSelectedDishId] = useState('');
   const [error, setError] = useState('');
@@ -30,6 +31,7 @@ export default function CalendarioPage() {
   const toLocalDate = useCallback((value: string) => new Date(`${toDateOnly(value)}T00:00:00`), [
     toDateOnly,
   ]);
+  const toLocalDateFromDateOnly = useCallback((value: string) => new Date(`${value}T00:00:00`), []);
 
   const { data: meals, isLoading: mealsLoading } = useQuery({
     queryKey: ['meals', 'range', visibleRange.start, visibleRange.end],
@@ -43,12 +45,12 @@ export default function CalendarioPage() {
   });
 
   const { data: suggestions, isLoading: suggestionsLoading } = useQuery({
-    queryKey: ['suggestions', selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', selectedMealType],
+    queryKey: ['suggestions', selectedDateStr || '', selectedMealType],
     queryFn: () =>
-      selectedDate
-        ? suggestionsApi.get(format(selectedDate, 'yyyy-MM-dd'), selectedMealType)
+      selectedDateStr
+        ? suggestionsApi.get(selectedDateStr, selectedMealType)
         : Promise.resolve([]),
-    enabled: !!selectedDate,
+    enabled: !!selectedDateStr,
   });
 
   const createMutation = useMutation({
@@ -89,8 +91,9 @@ export default function CalendarioPage() {
     }));
   }, [meals]);
 
-  const handleDateClick = (arg: { date: Date }) => {
-    setSelectedDate(arg.date);
+  const handleDateClick = (arg: { date: Date; dateStr: string }) => {
+    setSelectedDateStr(arg.dateStr);
+    setSelectedDate(toLocalDateFromDateOnly(arg.dateStr));
     setSelectedMealType('pranzo');
     setSelectedDishId('');
     setError('');
@@ -100,29 +103,30 @@ export default function CalendarioPage() {
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedDate(null);
+    setSelectedDateStr(null);
     setSelectedDishId('');
     setError('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDate || !selectedDishId) {
+    if (!selectedDateStr || !selectedDishId) {
       setError('Seleziona un piatto');
       return;
     }
 
     createMutation.mutate({
-      date: format(selectedDate, 'yyyy-MM-dd'),
+      date: selectedDateStr,
       mealType: selectedMealType,
       dishId: selectedDishId,
     });
   };
 
   const handleAcceptSuggestion = (suggestion: Suggestion) => {
-    if (!selectedDate) return;
+    if (!selectedDateStr) return;
 
     createMutation.mutate({
-      date: format(selectedDate, 'yyyy-MM-dd'),
+      date: selectedDateStr,
       mealType: selectedMealType,
       dishId: suggestion.dish.id,
       isSuggestion: true,
@@ -149,13 +153,11 @@ export default function CalendarioPage() {
   };
 
   const selectedDateMeals = useMemo(() => {
-    if (!selectedDate || !meals) return [];
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    if (!selectedDateStr || !meals) return [];
     return meals.filter(
-      (meal) =>
-        toDateOnly(meal.date) === dateStr && meal.mealType === selectedMealType
+      (meal) => toDateOnly(meal.date) === selectedDateStr && meal.mealType === selectedMealType
     );
-  }, [selectedDate, selectedMealType, meals, toDateOnly]);
+  }, [selectedDateStr, selectedMealType, meals, toDateOnly]);
 
   const eventContent = (eventInfo: any) => {
     const { mealType, category } = eventInfo.event.extendedProps;
@@ -203,7 +205,9 @@ export default function CalendarioPage() {
               eventClick={(info) => {
                 const meal = meals?.find((m) => m.id === info.event.id);
                 if (meal) {
-                  setSelectedDate(toLocalDate(meal.date));
+                  const dateStr = toDateOnly(meal.date);
+                  setSelectedDateStr(dateStr);
+                  setSelectedDate(toLocalDateFromDateOnly(dateStr));
                   setSelectedMealType(meal.mealType);
                   setSelectedDishId('');
                   setError('');
