@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Family {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users         User[]
+  dishes        Dish[]
+  mealPlans     MealPlan[]
+  shoppingLists ShoppingList[]
+  invites       FamilyInvite[]
+
+  @@map("families")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  familyId      String   @map("family_id")
+  email         String   @unique
+  name          String
+  avatarUrl     String?  @map("avatar_url")
+  passwordHash  String?  @map("password_hash")
+  oauthProvider String   @map("oauth_provider")
+  oauthId       String   @map("oauth_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id])
+
+  @@unique([oauthProvider, oauthId])
+  @@map("users")
+}
+
+enum DishCategory {
+  primo
+  secondo
+  contorno
+}
+
+model Dish {
+  id          String       @id @default(uuid())
+  familyId    String       @map("family_id")
+  name        String
+  category    DishCategory
+  ingredients String[]     @default([])
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  family    Family     @relation(fields: [familyId], references: [id])
+  mealPlans MealPlan[]
+
+  @@map("dishes")
+}
+
+enum MealType {
+  pranzo
+  cena
+}
+
+model MealPlan {
+  id           String   @id @default(uuid())
+  familyId     String   @map("family_id")
+  date         DateTime @db.Date
+  mealType     MealType @map("meal_type")
+  dishId       String   @map("dish_id")
+  isSuggestion Boolean  @default(false) @map("is_suggestion")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id])
+  dish   Dish   @relation(fields: [dishId], references: [id])
+
+  @@unique([familyId, date, mealType, dishId])
+  @@map("meal_plans")
+}
+
+model ShoppingList {
+  id         String   @id @default(uuid())
+  familyId   String   @map("family_id")
+  weekStart  DateTime @map("week_start") @db.Date
+  items      Json     @default("[]")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id])
+
+  @@unique([familyId, weekStart])
+  @@map("shopping_lists")
+}
+
+model FamilyInvite {
+  id        String   @id @default(uuid())
+  familyId  String   @map("family_id")
+  email     String
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id])
+
+  @@map("family_invites")
+}
+
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String
+  expiresAt DateTime @map("expires_at")
+
+  @@map("sessions")
+}

@@ -1,0 +1,40 @@
+FAMILY MEAL PLANNER - INSTALLAZIONE E AVVIO
+
+PRIMA INSTALLAZIONE
+1) Prerequisiti
+   - Node.js 18+
+   - PostgreSQL 14+
+
+2) Database
+   - Crea il DB:
+     CREATE DATABASE family_meal_planner;
+
+3) Backend
+   - cd backend
+   - cp .env.example .env
+   - Compila i valori in .env
+   - npm install
+   - npm run db:generate
+   - npm run db:migrate
+   - (opzionale) npm run db:seed
+   - npm run dev
+
+4) Frontend
+   - cd frontend
+   - cp .env.example .env.local
+   - Compila i valori in .env.local
+   - npm install
+   - npm run dev
+
+AVVIO SUCCESSIVO
+1) Backend
+   - cd backend
+   - npm run dev
+
+2) Frontend
+   - cd frontend
+   - npm run dev
+
+NOTE
+- L'API gira su http://localhost:3001
+- Il frontend gira su http://localhost:3000

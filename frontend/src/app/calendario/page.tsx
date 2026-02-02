@@ -1,0 +1,346 @@
+'use client';
+
+import { useState, useMemo, useCallback } from 'react';
+import { Card, Button, Modal, Form, Badge, ListGroup, Spinner, Alert, Row, Col } from 'react-bootstrap';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import { format, parseISO, startOfWeek } from 'date-fns';
+import { it } from 'date-fns/locale';
+import { FaPlus, FaTrash, FaLightbulb } from 'react-icons/fa';
+import DashboardLayout from '@/components/DashboardLayout';
+import { mealsApi, dishesApi, suggestionsApi } from '@/lib/api';
+import { MealPlan, Dish, MealType, Suggestion } from '@/types';
+
+export default function CalendarioPage() {
+  const queryClient = useQueryClient();
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [showModal, setShowModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedMealType, setSelectedMealType] = useState<MealType>('pranzo');
+  const [selectedDishId, setSelectedDishId] = useState('');
+  const [error, setError] = useState('');
+
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const weekString = format(weekStart, 'yyyy-MM-dd');
+
+  const { data: meals, isLoading: mealsLoading } = useQuery({
+    queryKey: ['meals', weekString],
+    queryFn: () => mealsApi.getWeek(weekString),
+  });
+
+  const { data: dishes } = useQuery({
+    queryKey: ['dishes'],
+    queryFn: () => dishesApi.list(),
+  });
+
+  const { data: suggestions, isLoading: suggestionsLoading } = useQuery({
+    queryKey: ['suggestions', selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', selectedMealType],
+    queryFn: () =>
+      selectedDate
+        ? suggestionsApi.get(format(selectedDate, 'yyyy-MM-dd'), selectedMealType)
+        : Promise.resolve([]),
+    enabled: !!selectedDate,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: mealsApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+      queryClient.invalidateQueries({ queryKey: ['suggestions'] });
+      handleCloseModal();
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: mealsApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+      queryClient.invalidateQueries({ queryKey: ['suggestions'] });
+    },
+  });
+
+  const calendarEvents = useMemo(() => {
+    if (!meals) return [];
+
+    return meals.map((meal) => ({
+      id: meal.id,
+      title: meal.dish.name,
+      start: meal.date,
+      allDay: true,
+      extendedProps: {
+        mealType: meal.mealType,
+        category: meal.dish.category,
+        dish: meal.dish,
+      },
+      backgroundColor: meal.mealType === 'pranzo' ? '#f39c12' : '#9b59b6',
+      borderColor: meal.mealType === 'pranzo' ? '#f39c12' : '#9b59b6',
+    }));
+  }, [meals]);
+
+  const handleDateClick = (arg: { date: Date }) => {
+    setSelectedDate(arg.date);
+    setSelectedMealType('pranzo');
+    setSelectedDishId('');
+    setError('');
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedDate(null);
+    setSelectedDishId('');
+    setError('');
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDate || !selectedDishId) {
+      setError('Seleziona un piatto');
+      return;
+    }
+
+    createMutation.mutate({
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      mealType: selectedMealType,
+      dishId: selectedDishId,
+    });
+  };
+
+  const handleAcceptSuggestion = (suggestion: Suggestion) => {
+    if (!selectedDate) return;
+
+    createMutation.mutate({
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      mealType: selectedMealType,
+      dishId: suggestion.dish.id,
+      isSuggestion: true,
+    });
+  };
+
+  const handleDeleteMeal = (mealId: string) => {
+    if (confirm('Rimuovere questo piatto dalla pianificazione?')) {
+      deleteMutation.mutate(mealId);
+    }
+  };
+
+  const getCategoryBadgeClass = (category: string) => {
+    switch (category) {
+      case 'primo':
+        return 'badge-primo';
+      case 'secondo':
+        return 'badge-secondo';
+      case 'contorno':
+        return 'badge-contorno';
+      default:
+        return 'bg-secondary';
+    }
+  };
+
+  const selectedDateMeals = useMemo(() => {
+    if (!selectedDate || !meals) return [];
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return meals.filter(
+      (meal) =>
+        format(parseISO(meal.date), 'yyyy-MM-dd') === dateStr && meal.mealType === selectedMealType
+    );
+  }, [selectedDate, selectedMealType, meals]);
+
+  const eventContent = (eventInfo: any) => {
+    const { mealType, category } = eventInfo.event.extendedProps;
+    return (
+      <div className="p-1">
+        <small className="d-block text-truncate">
+          {mealType === 'pranzo' ? '🌞' : '🌙'} {eventInfo.event.title}
+        </small>
+      </div>
+    );
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2>Calendario Pasti</h2>
+      </div>
+
+      <Card>
+        <Card.Body>
+          {mealsLoading ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="success" />
+            </div>
+          ) : (
+            <FullCalendar
+              plugins={[dayGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              locale="it"
+              firstDay={1}
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,dayGridWeek',
+              }}
+              events={calendarEvents}
+              dateClick={handleDateClick}
+              eventContent={eventContent}
+              height="auto"
+              datesSet={(dateInfo) => {
+                setCurrentDate(dateInfo.start);
+              }}
+              eventClick={(info) => {
+                const meal = meals?.find((m) => m.id === info.event.id);
+                if (meal) {
+                  setSelectedDate(parseISO(meal.date));
+                  setSelectedMealType(meal.mealType);
+                  setSelectedDishId('');
+                  setError('');
+                  setShowModal(true);
+                }
+              }}
+            />
+          )}
+        </Card.Body>
+      </Card>
+
+      <Modal show={showModal} onHide={handleCloseModal} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {selectedDate && format(selectedDate, 'EEEE d MMMM yyyy', { locale: it })}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Row>
+            <Col md={6}>
+              <div className="mb-3">
+                <div className="btn-group w-100" role="group">
+                  <Button
+                    variant={selectedMealType === 'pranzo' ? 'warning' : 'outline-warning'}
+                    onClick={() => setSelectedMealType('pranzo')}
+                  >
+                    🌞 Pranzo
+                  </Button>
+                  <Button
+                    variant={selectedMealType === 'cena' ? 'primary' : 'outline-primary'}
+                    onClick={() => setSelectedMealType('cena')}
+                    style={{
+                      backgroundColor: selectedMealType === 'cena' ? '#9b59b6' : 'transparent',
+                      borderColor: '#9b59b6',
+                      color: selectedMealType === 'cena' ? 'white' : '#9b59b6',
+                    }}
+                  >
+                    🌙 Cena
+                  </Button>
+                </div>
+              </div>
+
+              <h6 className="mb-2">Piatti pianificati</h6>
+              {selectedDateMeals.length > 0 ? (
+                <ListGroup className="mb-3">
+                  {selectedDateMeals.map((meal) => (
+                    <ListGroup.Item
+                      key={meal.id}
+                      className="d-flex justify-content-between align-items-center"
+                    >
+                      <div>
+                        <Badge className={`${getCategoryBadgeClass(meal.dish.category)} me-2`}>
+                          {meal.dish.category}
+                        </Badge>
+                        {meal.dish.name}
+                      </div>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="text-danger"
+                        onClick={() => handleDeleteMeal(meal.id)}
+                      >
+                        <FaTrash />
+                      </Button>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              ) : (
+                <p className="text-muted small mb-3">Nessun piatto pianificato</p>
+              )}
+
+              <h6 className="mb-2">Aggiungi piatto</h6>
+              {error && <Alert variant="danger">{error}</Alert>}
+              <Form onSubmit={handleSubmit}>
+                <Form.Group className="mb-3">
+                  <Form.Select
+                    value={selectedDishId}
+                    onChange={(e) => setSelectedDishId(e.target.value)}
+                  >
+                    <option value="">Seleziona un piatto...</option>
+                    {dishes?.map((dish) => (
+                      <option key={dish.id} value={dish.id}>
+                        [{dish.category}] {dish.name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={!selectedDishId || createMutation.isPending}
+                >
+                  {createMutation.isPending ? (
+                    <Spinner size="sm" animation="border" />
+                  ) : (
+                    <>
+                      <FaPlus className="me-1" /> Aggiungi
+                    </>
+                  )}
+                </Button>
+              </Form>
+            </Col>
+
+            <Col md={6}>
+              <div className="d-flex align-items-center gap-2 mb-3">
+                <FaLightbulb className="text-warning" />
+                <h6 className="mb-0">Suggerimenti</h6>
+              </div>
+
+              {suggestionsLoading ? (
+                <div className="text-center py-3">
+                  <Spinner size="sm" animation="border" variant="success" />
+                </div>
+              ) : suggestions && suggestions.length > 0 ? (
+                <ListGroup>
+                  {suggestions.map((suggestion) => (
+                    <ListGroup.Item
+                      key={suggestion.dish.id}
+                      action
+                      onClick={() => handleAcceptSuggestion(suggestion)}
+                      className="suggestion-card"
+                    >
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <Badge
+                            className={`${getCategoryBadgeClass(suggestion.dish.category)} me-2`}
+                          >
+                            {suggestion.dish.category}
+                          </Badge>
+                          {suggestion.dish.name}
+                        </div>
+                        <FaPlus className="text-success" />
+                      </div>
+                      <small className="text-muted">{suggestion.reason}</small>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              ) : (
+                <p className="text-muted small">
+                  Aggiungi piatti alla tua lista per ricevere suggerimenti
+                </p>
+              )}
+            </Col>
+          </Row>
+        </Modal.Body>
+      </Modal>
+    </DashboardLayout>
+  );
+}

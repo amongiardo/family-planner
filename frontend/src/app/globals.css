@@ -1,0 +1,187 @@
+:root {
+  --primary-color: #2c7a51;
+  --secondary-color: #5cb85c;
+  --accent-color: #f0ad4e;
+  --bg-light: #f8f9fa;
+  --text-dark: #333;
+}
+
+body {
+  background-color: var(--bg-light);
+  min-height: 100vh;
+}
+
+.navbar-brand {
+  font-weight: 600;
+}
+
+.card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  background-color: white;
+  border-bottom: 1px solid #eee;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: #236040;
+  border-color: #236040;
+}
+
+.badge-primo {
+  background-color: #e74c3c;
+}
+
+.badge-secondo {
+  background-color: #3498db;
+}
+
+.badge-contorno {
+  background-color: #27ae60;
+}
+
+.meal-card {
+  border-left: 4px solid var(--primary-color);
+  transition: transform 0.2s;
+}
+
+.meal-card:hover {
+  transform: translateY(-2px);
+}
+
+.meal-pranzo {
+  border-left-color: #f39c12;
+}
+
+.meal-cena {
+  border-left-color: #9b59b6;
+}
+
+.calendar-day {
+  min-height: 120px;
+  border: 1px solid #dee2e6;
+  padding: 8px;
+}
+
+.calendar-day.today {
+  background-color: #e8f5e9;
+}
+
+.calendar-day-header {
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+
+.shopping-item {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s;
+}
+
+.shopping-item:hover {
+  background-color: #f8f9fa;
+}
+
+.shopping-item.checked {
+  background-color: #f0f0f0;
+  text-decoration: line-through;
+  color: #888;
+}
+
+.suggestion-card {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.suggestion-card:hover {
+  background-color: #e8f5e9;
+  border-color: var(--primary-color);
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2c7a51 0%, #5cb85c 100%);
+}
+
+.login-card {
+  max-width: 400px;
+  width: 100%;
+  padding: 40px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.25rem;
+}
+
+.fc .fc-button-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.fc .fc-button-primary:hover {
+  background-color: #236040;
+  border-color: #236040;
+}
+
+.fc .fc-day-today {
+  background-color: #e8f5e9 !important;
+}
+
+.fc-event {
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.ingredient-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 2px;
+  background-color: #e9ecef;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.sidebar {
+  min-height: calc(100vh - 56px);
+  background-color: white;
+  border-right: 1px solid #dee2e6;
+}
+
+.sidebar .nav-link {
+  color: var(--text-dark);
+  padding: 12px 20px;
+  border-radius: 0;
+}
+
+.sidebar .nav-link:hover {
+  background-color: #f8f9fa;
+}
+
+.sidebar .nav-link.active {
+  background-color: #e8f5e9;
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid #dee2e6;
+  }
+}

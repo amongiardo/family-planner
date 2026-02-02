@@ -1,0 +1,181 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Card, Button, Spinner, Alert, Form } from 'react-bootstrap';
+import { FaGoogle, FaGithub, FaUsers } from 'react-icons/fa';
+import { familyApi, authApi } from '@/lib/api';
+import { useAuth } from '@/lib/AuthContext';
+
+export default function InvitePage() {
+  const params = useParams();
+  const router = useRouter();
+  const { refresh } = useAuth();
+  const token = params.token as string;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', password: '' });
+  const [inviteData, setInviteData] = useState<{
+    email: string;
+    family: { id: string; name: string };
+  } | null>(null);
+
+  useEffect(() => {
+    const validateInvite = async () => {
+      try {
+        const data = await familyApi.validateInvite(token);
+        setInviteData(data);
+      } catch (err: any) {
+        setError(err.message || 'Invito non valido o scaduto');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    validateInvite();
+  }, [token]);
+
+  const handleGoogleLogin = () => {
+    // Store invite token in session before redirecting to OAuth
+    sessionStorage.setItem('inviteToken', token);
+    window.location.href = `${authApi.getGoogleLoginUrl()}?invite=${token}`;
+  };
+
+  const handleGithubLogin = () => {
+    sessionStorage.setItem('inviteToken', token);
+    window.location.href = `${authApi.getGithubLoginUrl()}?invite=${token}`;
+  };
+
+  const handleLocalRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteData) {
+      return;
+    }
+    setSubmitting(true);
+    setLocalError(null);
+    try {
+      await authApi.registerLocal({
+        email: inviteData.email,
+        password: form.password,
+        name: form.name,
+        inviteToken: token,
+      });
+      await refresh();
+      router.push('/dashboard');
+    } catch (err: any) {
+      setLocalError(err?.message || 'Registrazione fallita');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="login-page">
+        <Card className="login-card text-center">
+          <Spinner animation="border" variant="success" />
+          <p className="mt-3 text-muted">Verifica invito...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !inviteData) {
+    return (
+      <div className="login-page">
+        <Card className="login-card text-center">
+          <Alert variant="danger">{error}</Alert>
+          <Button variant="primary" onClick={() => router.push('/login')}>
+            Vai al Login
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="login-page">
+      <Card className="login-card text-center">
+        <div className="mb-4">
+          <FaUsers size={48} className="text-success mb-3" />
+          <h4>Sei stato invitato!</h4>
+          <p className="text-muted">
+            Unisciti alla famiglia <strong>{inviteData.family.name}</strong>
+          </p>
+        </div>
+
+        <Alert variant="info" className="text-start">
+          <small>
+            Questo invito è per <strong>{inviteData.email}</strong>. Assicurati di accedere con
+            questo indirizzo email.
+          </small>
+        </Alert>
+
+        <div className="d-grid gap-3">
+          <Button
+            variant="outline-dark"
+            size="lg"
+            onClick={handleGoogleLogin}
+            className="d-flex align-items-center justify-content-center gap-2"
+          >
+            <FaGoogle /> Accedi con Google
+          </Button>
+
+          <Button
+            variant="dark"
+            size="lg"
+            onClick={handleGithubLogin}
+            className="d-flex align-items-center justify-content-center gap-2"
+          >
+            <FaGithub /> Accedi con GitHub
+          </Button>
+        </div>
+
+        <div className="my-4 text-muted">oppure</div>
+
+        {localError && (
+          <Alert variant="danger" className="mb-3 text-start">
+            {localError}
+          </Alert>
+        )}
+
+        <Form onSubmit={handleLocalRegister} className="text-start">
+          <Form.Group className="mb-3" controlId="inviteEmail">
+            <Form.Label>Email</Form.Label>
+            <Form.Control type="email" value={inviteData.email} disabled />
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="inviteName">
+            <Form.Label>Nome</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Il tuo nome"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="invitePassword">
+            <Form.Label>Password</Form.Label>
+            <Form.Control
+              type="password"
+              placeholder="••••••••"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+            />
+          </Form.Group>
+
+          <div className="d-grid">
+            <Button variant="success" type="submit" disabled={submitting}>
+              Crea Account e Entra
+            </Button>
+          </div>
+        </Form>
+      </Card>
+    </div>
+  );
+}
