@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { format, parseISO, startOfWeek } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { FaPlus, FaTrash, FaLightbulb } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -15,19 +15,26 @@ import { MealPlan, Dish, MealType, Suggestion } from '@/types';
 
 export default function CalendarioPage() {
   const queryClient = useQueryClient();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [visibleRange, setVisibleRange] = useState<{ start: string; end: string }>(() => {
+    const today = new Date();
+    const start = format(today, 'yyyy-MM-dd');
+    return { start, end: start };
+  });
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedMealType, setSelectedMealType] = useState<MealType>('pranzo');
   const [selectedDishId, setSelectedDishId] = useState('');
   const [error, setError] = useState('');
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekString = format(weekStart, 'yyyy-MM-dd');
+  const toDateOnly = useCallback((value: string) => value.split('T')[0], []);
+  const toLocalDate = useCallback((value: string) => new Date(`${toDateOnly(value)}T00:00:00`), [
+    toDateOnly,
+  ]);
 
   const { data: meals, isLoading: mealsLoading } = useQuery({
-    queryKey: ['meals', weekString],
-    queryFn: () => mealsApi.getWeek(weekString),
+    queryKey: ['meals', 'range', visibleRange.start, visibleRange.end],
+    queryFn: () => mealsApi.getRange(visibleRange.start, visibleRange.end),
+    enabled: Boolean(visibleRange.start && visibleRange.end),
   });
 
   const { data: dishes } = useQuery({
@@ -70,7 +77,7 @@ export default function CalendarioPage() {
     return meals.map((meal) => ({
       id: meal.id,
       title: meal.dish.name,
-      start: meal.date,
+      start: toDateOnly(meal.date),
       allDay: true,
       extendedProps: {
         mealType: meal.mealType,
@@ -146,9 +153,9 @@ export default function CalendarioPage() {
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     return meals.filter(
       (meal) =>
-        format(parseISO(meal.date), 'yyyy-MM-dd') === dateStr && meal.mealType === selectedMealType
+        toDateOnly(meal.date) === dateStr && meal.mealType === selectedMealType
     );
-  }, [selectedDate, selectedMealType, meals]);
+  }, [selectedDate, selectedMealType, meals, toDateOnly]);
 
   const eventContent = (eventInfo: any) => {
     const { mealType, category } = eventInfo.event.extendedProps;
@@ -189,12 +196,14 @@ export default function CalendarioPage() {
               eventContent={eventContent}
               height="auto"
               datesSet={(dateInfo) => {
-                setCurrentDate(dateInfo.start);
+                const start = format(dateInfo.start, 'yyyy-MM-dd');
+                const end = format(subDays(dateInfo.end, 1), 'yyyy-MM-dd');
+                setVisibleRange({ start, end });
               }}
               eventClick={(info) => {
                 const meal = meals?.find((m) => m.id === info.event.id);
                 if (meal) {
-                  setSelectedDate(parseISO(meal.date));
+                  setSelectedDate(toLocalDate(meal.date));
                   setSelectedMealType(meal.mealType);
                   setSelectedDishId('');
                   setError('');
