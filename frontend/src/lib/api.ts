@@ -1,4 +1,13 @@
-import { Dish, Family, MealPlan, ShoppingList, Suggestion, User, FamilyInvite } from '@/types';
+import {
+  Dish,
+  DishFrequency,
+  Family,
+  MealPlan,
+  ShoppingList,
+  Suggestion,
+  User,
+  FamilyInvite,
+} from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -66,6 +75,8 @@ export const dishesApi = {
     return fetchApi<Dish[]>(`/api/dishes${query ? `?${query}` : ''}`);
   },
   get: (id: string) => fetchApi<Dish>(`/api/dishes/${id}`),
+  frequency: (date?: string) =>
+    fetchApi<DishFrequency[]>(`/api/dishes/frequency${date ? `?date=${date}` : ''}`),
   create: (data: { name: string; category: string; ingredients: string[] }) =>
     fetchApi<Dish>('/api/dishes', {
       method: 'POST',

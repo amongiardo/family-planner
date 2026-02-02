@@ -33,6 +33,12 @@ export interface Dish {
   createdAt: string;
 }
 
+export interface DishFrequency {
+  dish: Dish;
+  weekCount: number;
+  monthCount: number;
+}
+
 export type MealType = 'pranzo' | 'cena';
 
 export interface MealPlan {
