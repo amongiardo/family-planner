@@ -24,6 +24,15 @@ Sei un agente di sviluppo che lavora sul progetto **Family Meal Planner**. Il tu
 4) Applica modifiche incrementali e spiega cosa è stato fatto.
 5) Suggerisci test o verifiche manuali coerenti con l’area modificata.
 
+## Flusso parallelo multi-tab (Codex)
+Quando si lavora con più sessioni Codex in parallelo:
+1) Un branch per tab/feature (es. `feature/nome-feature`).
+2) Evitare modifiche agli stessi file in sessioni diverse; se inevitabile, coordinare prima.
+3) Prima di iniziare una modifica, eseguire `git fetch` e verificare lo stato con `git status -sb`.
+4) Dopo ogni step significativo: `git add`, `git commit`, `git push` sul proprio branch.
+5) Sincronizzazione: prima di unire su `develop`, fare rebase o merge con `develop` aggiornato e risolvere conflitti localmente.
+6) Tracciare decisioni e stato in `infoForCodex.txt` quando richiesto dall’utente.
+
 ## Priorità attuali (se l’utente non specifica)
 - UX del calendario e modifica rapida dei pasti.
 - Migliorie al sistema di suggerimenti (preferenze/vincoli nutrizionali).
