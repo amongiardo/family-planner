@@ -1,0 +1,29 @@
+INFO FOR CODEX
+
+Scopo del progetto
+Family Meal Planner è una web app per la gestione dei pasti in famiglia. Consente di pianificare pranzi e cene su calendario, gestire un catalogo piatti con ingredienti, generare la lista della spesa e suggerire pasti per evitare ripetizioni e mantenere un’alimentazione bilanciata. Supporta l’uso multi‑famiglia con inviti e dati isolati per nucleo.
+
+Com’è costruita
+- Frontend: Next.js 14 (App Router) con TypeScript, React Bootstrap e FullCalendar.
+- Backend: Node.js + Express con TypeScript.
+- Database: PostgreSQL con Prisma ORM.
+- Autenticazione: OAuth 2.0 (Google, GitHub) con sessioni server-side.
+
+Cosa fa (stato attuale)
+- Autenticazione OAuth e gestione sessione.
+- Gestione famiglia: info, aggiornamento, inviti e lista inviti.
+- Gestione piatti: CRUD con categorie e ingredienti.
+- Pianificazione pasti: CRUD per pranzi/cene su base settimanale.
+- Suggerimenti pasti: evita ripetizioni recenti, limita uso e bilancia la settimana.
+- Lista spesa: generazione da ingredienti dei pasti pianificati e spunta acquisti.
+- Interfaccia: dashboard, calendario, piatti, spesa, impostazioni, login e inviti.
+
+Cosa dovrebbe fare (prossimi passi noti)
+- Rifinire la UX del calendario e la modifica rapida dei pasti.
+- Migliorare il sistema di suggerimenti con preferenze e vincoli nutrizionali.
+- Agganciare flussi completi di invito e onboarding per nuovi membri.
+
+Note operative
+- Backend: `backend/` con Prisma e migrazioni.
+- Frontend: `frontend/` con pagine App Router.
+- Avvio: vedere `install.txt`.
