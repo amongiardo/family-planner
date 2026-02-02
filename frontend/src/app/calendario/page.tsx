@@ -55,7 +55,20 @@ export default function CalendarioPage() {
 
   const createMutation = useMutation({
     mutationFn: mealsApi.create,
-    onSuccess: () => {
+    onSuccess: (meal) => {
+      const cachedMeals = queryClient.getQueryData<MealPlan[]>([
+        'meals',
+        'range',
+        visibleRange.start,
+        visibleRange.end,
+      ]);
+      const alreadyPlanned = cachedMeals?.some((existing) => existing.id === meal.id);
+
+      if (alreadyPlanned) {
+        setError('Piatto già pianificato per questa data e pasto');
+        return;
+      }
+
       queryClient.invalidateQueries({ queryKey: ['meals'] });
       queryClient.invalidateQueries({ queryKey: ['suggestions'] });
       handleCloseModal();
