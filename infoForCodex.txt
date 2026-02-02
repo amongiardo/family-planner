@@ -1,4 +1,5 @@
 INFO FOR CODEX
+Ultimo aggiornamento: 2026-02-02
 
 Scopo del progetto
 Family Meal Planner è una web app per la gestione dei pasti in famiglia. Consente di pianificare pranzi e cene su calendario, gestire un catalogo piatti con ingredienti, generare la lista della spesa e suggerire pasti per evitare ripetizioni e mantenere un’alimentazione bilanciata. Supporta l’uso multi‑famiglia con inviti e dati isolati per nucleo.
