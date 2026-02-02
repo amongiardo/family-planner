@@ -27,3 +27,13 @@ Note operative
 - Backend: `backend/` con Prisma e migrazioni.
 - Frontend: `frontend/` con pagine App Router.
 - Avvio: vedere `install.txt`.
+
+Stato branch
+- Branch attuale: feature/gestione-calendario.
+- Branch principali: main (production), develop (sviluppo).
+
+Prossimo obiettivo
+- Iterare su UX calendario e modifica rapida dei pasti.
+
+Changelog
+- 2026-02-02: Creato infoForCodex.txt con descrizione iniziale del progetto.
