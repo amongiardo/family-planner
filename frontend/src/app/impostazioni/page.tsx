@@ -122,7 +122,7 @@ export default function ImpostazioniPage() {
 
   return (
     <DashboardLayout>
-      <h2 className="mb-4">Impostazioni</h2>
+      <h2 className="mb-4 page-title">Impostazioni</h2>
 
       {error && (
         <Alert variant="danger" dismissible onClose={() => setError('')}>

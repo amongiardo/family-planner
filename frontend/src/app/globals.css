@@ -509,6 +509,43 @@ body::after {
   color: #4a4656;
 }
 
+.calendar-card {
+  border-radius: 28px;
+}
+
+.calendar-shell .fc {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 22px;
+  padding: 12px;
+}
+
+.calendar-shell .fc .fc-col-header-cell-cushion {
+  color: #3a2f4f;
+}
+
+.calendar-shell .fc .fc-daygrid-day-number {
+  color: #3a2f4f;
+}
+
+.calendar-shell .fc .fc-daygrid-day {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.calendar-shell .fc .fc-daygrid-day:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.bubble-progress {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bubble-progress-bar {
+  background: linear-gradient(90deg, #fff176, #ffb74d);
+  border-radius: 999px;
+}
+
 .dish-card {
   border-radius: 26px;
 }
