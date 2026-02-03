@@ -84,6 +84,8 @@ export const dishesApi = {
 // Meals
 export const mealsApi = {
   getWeek: (week: string) => fetchApi<MealPlan[]>(`/api/meals?week=${week}`),
+  getRange: (start: string, end: string) =>
+    fetchApi<MealPlan[]>(`/api/meals/range?start=${start}&end=${end}`),
   getDate: (date: string) => fetchApi<MealPlan[]>(`/api/meals/date/${date}`),
   create: (data: { date: string; mealType: string; dishId: string; isSuggestion?: boolean }) =>
     fetchApi<MealPlan>('/api/meals', {

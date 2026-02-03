@@ -45,6 +45,42 @@ router.get('/', isAuthenticated, async (req, res, next) => {
   }
 });
 
+// Get meals for a date range
+router.get('/range', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const { start, end } = req.query;
+
+    if (!start || typeof start !== 'string' || !end || typeof end !== 'string') {
+      return res.status(400).json({ error: 'Start and end parameters are required (YYYY-MM-DD)' });
+    }
+
+    const startDate = parseDateOnly(start);
+    const endDate = parseDateOnly(end);
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    const meals = await prisma.mealPlan.findMany({
+      where: {
+        familyId,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        dish: true,
+      },
+      orderBy: [{ date: 'asc' }, { mealType: 'asc' }],
+    });
+
+    res.json(meals);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get meals for a specific date
 router.get('/date/:date', isAuthenticated, async (req, res, next) => {
   try {
