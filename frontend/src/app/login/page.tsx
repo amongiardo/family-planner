@@ -63,7 +63,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card text-center">
-        <h1 className="mb-2 login-title">Family Meal Planner</h1>
+        <h1 className="mb-2" style={{ color: '#2c7a51' }}>Family Meal Planner</h1>
         <p className="text-muted mb-4">Pianifica i pasti della tua famiglia</p>
 
         {error && (
@@ -80,7 +80,7 @@ export default function LoginPage() {
 
         <div className="d-grid gap-3">
           <Button
-            variant="outline-primary"
+            variant="outline-dark"
             size="lg"
             onClick={handleGoogleLogin}
             className="d-flex align-items-center justify-content-center gap-2"
@@ -89,7 +89,7 @@ export default function LoginPage() {
           </Button>
 
           <Button
-            variant="primary"
+            variant="dark"
             size="lg"
             onClick={handleGithubLogin}
             className="d-flex align-items-center justify-content-center gap-2"
@@ -137,7 +137,7 @@ export default function LoginPage() {
           </Form.Group>
 
           <div className="d-grid">
-            <Button variant="primary" type="submit" disabled={submitting}>
+            <Button variant="success" type="submit" disabled={submitting}>
               {mode === 'login' ? 'Accedi con Email' : 'Crea Account'}
             </Button>
           </div>

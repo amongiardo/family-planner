@@ -3,16 +3,17 @@
 import { Navbar as BsNavbar, Container, Nav, NavDropdown, Image } from 'react-bootstrap';
 import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
+import { FaUtensils } from 'react-icons/fa';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
 
   return (
-    <BsNavbar expand="lg" className="app-navbar shadow-sm">
+    <BsNavbar bg="white" expand="lg" className="shadow-sm">
       <Container fluid>
         <Link href="/dashboard" passHref legacyBehavior>
           <BsNavbar.Brand className="d-flex align-items-center gap-2">
-            <span style={{ fontSize: 18 }}>🍽️</span>
+            <FaUtensils color="#2c7a51" />
             Family Meal Planner
           </BsNavbar.Brand>
         </Link>

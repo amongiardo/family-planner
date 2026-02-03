@@ -18,7 +18,7 @@ export default function Sidebar() {
 
   return (
     <div className="sidebar py-3">
-      <Nav className="flex-column sidebar-nav">
+      <Nav className="flex-column">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -26,7 +26,7 @@ export default function Sidebar() {
           return (
             <Link key={item.href} href={item.href} passHref legacyBehavior>
               <Nav.Link
-                className={`d-flex align-items-center gap-2 sidebar-link ${isActive ? 'active' : ''}`}
+                className={`d-flex align-items-center gap-2 ${isActive ? 'active' : ''}`}
               >
                 <Icon /> {item.label}
               </Nav.Link>
