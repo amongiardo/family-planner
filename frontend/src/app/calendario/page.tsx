@@ -186,7 +186,7 @@ export default function CalendarioPage() {
   return (
     <DashboardLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Calendario Pasti</h2>
+        <h2 className="page-title">Calendario Pasti</h2>
       </div>
 
       <Card>

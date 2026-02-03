@@ -162,7 +162,7 @@ export default function PiattiPage() {
   return (
     <DashboardLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Gestione Piatti</h2>
+        <h2 className="page-title">Gestione Piatti</h2>
         <Button variant="primary" onClick={() => handleOpenModal()}>
           <FaPlus className="me-2" /> Nuovo Piatto
         </Button>
@@ -212,7 +212,7 @@ export default function PiattiPage() {
         <Row>
           {dishes.map((dish) => (
             <Col md={6} lg={4} key={dish.id} className="mb-4">
-              <Card className="h-100">
+              <Card className="h-100 dish-card">
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-start mb-2">
                     <div>
