@@ -297,6 +297,10 @@ export default function PiattiPage() {
           }
         }}
       />
+      <p className="small text-muted mb-4">
+        Formato CSV: <strong>name,category,ingredients</strong> — ingredienti separati da “;”
+        (categorie: primo, secondo, contorno).
+      </p>
 
       <Card className="mb-4">
         <Card.Body>
