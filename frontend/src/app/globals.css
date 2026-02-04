@@ -172,22 +172,38 @@ body::after {
 }
 
 .day-pill.today {
-  background: rgba(255, 255, 255, 0.45);
-  border-color: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 0 rgba(255, 255, 255, 0.4);
+  background: var(--accent-lunch);
+  border-color: var(--accent-lunch-shadow);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.15);
+}
+
+.day-pill-today {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #6a46b2;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.12);
 }
 
 .day-pill.today .day-pill-short {
-  color: #fff;
+  color: #4e342e;
 }
 
 .day-pill.today .day-pill-number {
-  color: #fff;
+  color: #4e342e;
 }
 
 .day-pill.active {
-  background: rgba(255, 255, 255, 0.95);
-  border: none;
+  background: var(--accent-lunch);
+  border-color: var(--accent-lunch-shadow);
   transform: translateY(-2px);
 }
 
@@ -200,7 +216,7 @@ body::after {
 }
 
 .day-pill.active .day-pill-short {
-  color: var(--accent-purple);
+  color: #4e342e;
 }
 
 .day-pill-number {
@@ -212,7 +228,7 @@ body::after {
 }
 
 .day-pill.active .day-pill-number {
-  color: #2f2a3a;
+  color: #4e342e;
 }
 
 .day-pill-dots {

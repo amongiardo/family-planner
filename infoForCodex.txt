@@ -43,3 +43,4 @@ Changelog
 - 2026-02-04: Redesign UI basato su v4 (gradienti, bubble cards, day pills) su dashboard, calendario, spesa e impostazioni.
 - 2026-02-04: Fix calendario (range visibile, date click senza shift, parsing date‑only UTC) e alert duplicati.
 - 2026-02-04: Dashboard aggiornata a settimana lun‑dom con navigazione e modal add‑meal inline.
+- 2026-02-04: Day strip dashboard: badge "Oggi" e highlight giallo per oggi/selected.

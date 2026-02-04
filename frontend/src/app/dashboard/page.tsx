@@ -246,6 +246,7 @@ export default function DashboardPage() {
               className={`day-pill ${isActive ? 'active' : ''} ${isToday ? 'today' : ''}`}
               onClick={() => setSelectedDayIndex(i)}
             >
+              {isToday && <span className="day-pill-today">Oggi</span>}
               <span className="day-pill-short">{day.short}</span>
               <span className="day-pill-number">{day.number}</span>
               <div className="day-pill-dots">
