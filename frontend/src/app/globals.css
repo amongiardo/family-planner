@@ -599,6 +599,21 @@ body::after {
   background: rgba(255, 255, 255, 0.85);
 }
 
+.calendar-event-delete {
+  border: none;
+  background: rgba(0, 0, 0, 0.08);
+  color: #3a2f4f;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .bubble-progress {
   background: rgba(255, 255, 255, 0.5);
   border-radius: 999px;

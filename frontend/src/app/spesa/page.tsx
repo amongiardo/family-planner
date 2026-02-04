@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Button, Form, ListGroup, Spinner, Alert, Badge, Row, Col } from 'react-bootstrap';
+import { Card, Button, Form, ListGroup, Spinner, Badge, Row, Col } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -9,10 +9,12 @@ import { FaSync, FaChevronLeft, FaChevronRight, FaCheck, FaShoppingCart } from '
 import DashboardLayout from '@/components/DashboardLayout';
 import { shoppingApi } from '@/lib/api';
 import { ShoppingListItem } from '@/types';
+import StatusModal from '@/components/StatusModal';
 
 export default function SpesaPage() {
   const queryClient = useQueryClient();
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [dismissError, setDismissError] = useState(false);
   const weekString = format(currentWeek, 'yyyy-MM-dd');
 
   const { data: shoppingList, isLoading, error } = useQuery({
@@ -127,7 +129,19 @@ export default function SpesaPage() {
           </Card.Body>
         </Card>
       ) : error ? (
-        <Alert variant="danger">Errore nel caricamento della lista</Alert>
+        <>
+          <StatusModal
+            show={!dismissError}
+            variant="danger"
+            message="Errore nel caricamento della lista"
+            onClose={() => setDismissError(true)}
+          />
+          <Card>
+            <Card.Body className="text-center py-5">
+              <p className="text-muted mb-0">Errore nel caricamento della lista</p>
+            </Card.Body>
+          </Card>
+        </>
       ) : items.length > 0 ? (
         <Card>
           <ListGroup variant="flush">

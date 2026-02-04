@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Alert, Form } from 'react-bootstrap';
+import { Button, Form } from 'react-bootstrap';
 import { FaGoogle, FaGithub } from 'react-icons/fa';
 import { useAuth } from '@/lib/AuthContext';
 import { authApi } from '@/lib/api';
+import StatusModal from '@/components/StatusModal';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,17 +67,17 @@ export default function LoginPage() {
         <h1 className="mb-2 login-title">Family Meal Planner</h1>
         <p className="text-muted mb-4">Pianifica i pasti della tua famiglia</p>
 
-        {error && (
-          <Alert variant="danger" className="mb-4">
-            Autenticazione fallita. Riprova.
-          </Alert>
-        )}
-
-        {localError && (
-          <Alert variant="danger" className="mb-4">
-            {localError}
-          </Alert>
-        )}
+        <StatusModal
+          show={Boolean(error || localError)}
+          variant="danger"
+          message={error ? 'Autenticazione fallita. Riprova.' : localError || ''}
+          onClose={() => {
+            if (error) {
+              router.replace('/login');
+            }
+            setLocalError(null);
+          }}
+        />
 
         <div className="d-grid gap-3">
           <Button

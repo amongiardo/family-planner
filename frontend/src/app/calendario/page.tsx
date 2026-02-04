@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Card, Button, Modal, Form, Badge, ListGroup, Spinner, Alert, Row, Col } from 'react-bootstrap';
+import { Card, Button, Modal, Form, Badge, ListGroup, Spinner, Row, Col } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -12,6 +12,7 @@ import { FaPlus, FaTrash, FaLightbulb } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, dishesApi, suggestionsApi } from '@/lib/api';
 import { MealPlan, Dish, MealType, Suggestion } from '@/types';
+import StatusModal from '@/components/StatusModal';
 
 export default function CalendarioPage() {
   const queryClient = useQueryClient();
@@ -177,10 +178,21 @@ export default function CalendarioPage() {
   const eventContent = (eventInfo: any) => {
     const { mealType, category } = eventInfo.event.extendedProps;
     return (
-      <div className="p-1">
+      <div className="p-1 d-flex align-items-center justify-content-between gap-2">
         <small className="d-block text-truncate">
           {mealType === 'pranzo' ? '🌞' : '🌙'} {eventInfo.event.title}
         </small>
+        <button
+          type="button"
+          className="calendar-event-delete"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteMeal(eventInfo.event.id);
+          }}
+          aria-label="Rimuovi"
+        >
+          ×
+        </button>
       </div>
     );
   };
@@ -301,7 +313,12 @@ export default function CalendarioPage() {
               )}
 
               <h6 className="mb-2">Aggiungi piatto</h6>
-              {error && <Alert variant="danger">{error}</Alert>}
+              <StatusModal
+                show={Boolean(error)}
+                variant="danger"
+                message={error}
+                onClose={() => setError('')}
+              />
               <Form onSubmit={handleSubmit}>
                 <Form.Group className="mb-3">
                   <Form.Select

@@ -12,13 +12,13 @@ import {
   ListGroup,
   InputGroup,
   Spinner,
-  Alert,
 } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FaPlus, FaEdit, FaTrash, FaSearch, FaTimes } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { dishesApi } from '@/lib/api';
 import { Dish, DishCategory } from '@/types';
+import StatusModal from '@/components/StatusModal';
 
 const categoryLabels: Record<DishCategory, string> = {
   primo: 'Primo',
@@ -359,17 +359,19 @@ export default function PiattiPage() {
         </Card.Body>
       </Card>
 
-      {importStatus && (
-        <Alert variant="success" dismissible onClose={() => setImportStatus(null)}>
-          {importStatus}
-        </Alert>
-      )}
+      <StatusModal
+        show={Boolean(importStatus)}
+        variant="success"
+        message={importStatus || ''}
+        onClose={() => setImportStatus(null)}
+      />
 
-      {error && (
-        <Alert variant="danger" dismissible onClose={() => setError('')}>
-          {error}
-        </Alert>
-      )}
+      <StatusModal
+        show={Boolean(error)}
+        variant="danger"
+        message={error}
+        onClose={() => setError('')}
+      />
 
       {isLoading ? (
         <div className="text-center py-5">
@@ -438,7 +440,12 @@ export default function PiattiPage() {
         </Modal.Header>
         <Form onSubmit={handleSubmit}>
           <Modal.Body>
-            {error && <Alert variant="danger">{error}</Alert>}
+            <StatusModal
+              show={Boolean(error)}
+              variant="danger"
+              message={error}
+              onClose={() => setError('')}
+            />
 
             <Form.Group className="mb-3">
               <Form.Label>Nome</Form.Label>

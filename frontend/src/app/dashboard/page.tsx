@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
-import { Row, Col, Card, Button, Badge, ListGroup, Spinner, Modal, Form, Alert } from 'react-bootstrap';
+import { Row, Col, Card, Button, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, differenceInCalendarDays } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -10,6 +10,7 @@ import { FaPlus, FaLightbulb, FaCalendarAlt, FaTimes } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, suggestionsApi, dishesApi, familyApi, weatherApi } from '@/lib/api';
 import { MealPlan, MealType, Suggestion } from '@/types';
+import StatusModal from '@/components/StatusModal';
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
@@ -502,7 +503,12 @@ export default function DashboardPage() {
               </div>
 
               <h6 className="mb-2">Aggiungi piatto</h6>
-              {error && <Alert variant="danger">{error}</Alert>}
+              <StatusModal
+                show={Boolean(error)}
+                variant="danger"
+                message={error}
+                onClose={() => setError('')}
+              />
               <Form onSubmit={handleSubmit}>
                 <Form.Group className="mb-3">
                   <Form.Select

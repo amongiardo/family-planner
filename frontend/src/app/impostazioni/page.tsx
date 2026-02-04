@@ -7,7 +7,6 @@ import {
   Form,
   ListGroup,
   Spinner,
-  Alert,
   InputGroup,
   Image,
   Row,
@@ -21,6 +20,7 @@ import { FaEnvelope, FaTrash, FaCopy, FaCheck } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { familyApi } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import StatusModal from '@/components/StatusModal';
 
 export default function ImpostazioniPage() {
   const queryClient = useQueryClient();
@@ -128,16 +128,18 @@ export default function ImpostazioniPage() {
     <DashboardLayout>
       <h2 className="mb-4 page-title">Impostazioni</h2>
 
-      {error && (
-        <Alert variant="danger" dismissible onClose={() => setError('')}>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert variant="success" dismissible onClose={() => setSuccess('')}>
-          {success}
-        </Alert>
-      )}
+      <StatusModal
+        show={Boolean(error)}
+        variant="danger"
+        message={error}
+        onClose={() => setError('')}
+      />
+      <StatusModal
+        show={Boolean(success)}
+        variant="success"
+        message={success}
+        onClose={() => setSuccess('')}
+      />
 
       <Card className="mb-4">
         <Card.Header>Riepilogo</Card.Header>

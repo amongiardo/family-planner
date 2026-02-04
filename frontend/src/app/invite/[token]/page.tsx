@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, Button, Spinner, Alert, Form } from 'react-bootstrap';
+import { Card, Button, Spinner, Form } from 'react-bootstrap';
 import { FaGoogle, FaGithub, FaUsers } from 'react-icons/fa';
 import { familyApi, authApi } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import StatusModal from '@/components/StatusModal';
 
 export default function InvitePage() {
   const params = useParams();
@@ -16,6 +17,7 @@ export default function InvitePage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [showInviteInfo, setShowInviteInfo] = useState(false);
   const [form, setForm] = useState({ name: '', password: '' });
   const [inviteData, setInviteData] = useState<{
     email: string;
@@ -27,6 +29,7 @@ export default function InvitePage() {
       try {
         const data = await familyApi.validateInvite(token);
         setInviteData(data);
+        setShowInviteInfo(true);
       } catch (err: any) {
         setError(err.message || 'Invito non valido o scaduto');
       } finally {
@@ -86,7 +89,13 @@ export default function InvitePage() {
     return (
       <div className="login-page">
         <Card className="login-card text-center">
-          <Alert variant="danger">{error}</Alert>
+          <StatusModal
+            show={Boolean(error)}
+            variant="danger"
+            message={error || 'Invito non valido o scaduto'}
+            onClose={() => setError('')}
+          />
+          <p className="text-muted mb-3">{error || 'Invito non valido o scaduto'}</p>
           <Button variant="primary" onClick={() => router.push('/login')}>
             Vai al Login
           </Button>
@@ -106,12 +115,12 @@ export default function InvitePage() {
           </p>
         </div>
 
-        <Alert variant="info" className="text-start">
-          <small>
-            Questo invito è per <strong>{inviteData.email}</strong>. Assicurati di accedere con
-            questo indirizzo email.
-          </small>
-        </Alert>
+        <StatusModal
+          show={showInviteInfo}
+          variant="info"
+          message={`Questo invito è per ${inviteData.email}. Assicurati di accedere con questo indirizzo email.`}
+          onClose={() => setShowInviteInfo(false)}
+        />
 
         <div className="d-grid gap-3">
           <Button
@@ -135,11 +144,12 @@ export default function InvitePage() {
 
         <div className="my-4 text-muted">oppure</div>
 
-        {localError && (
-          <Alert variant="danger" className="mb-3 text-start">
-            {localError}
-          </Alert>
-        )}
+        <StatusModal
+          show={Boolean(localError)}
+          variant="danger"
+          message={localError || ''}
+          onClose={() => setLocalError(null)}
+        />
 
         <Form onSubmit={handleLocalRegister} className="text-start">
           <Form.Group className="mb-3" controlId="inviteEmail">
