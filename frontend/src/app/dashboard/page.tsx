@@ -209,11 +209,7 @@ export default function DashboardPage() {
       <div className="dashboard-hero">
         <div>
           <p className="dashboard-kicker">👋 Benvenuto!</p>
-          <h1 className="dashboard-title">
-            Meal
-            <br />
-            Planner 🍽️
-          </h1>
+          <h1 className="dashboard-title">Meal Planner 🍽️</h1>
           <p className="dashboard-date">
             Settimana {format(weekStart, 'd MMM', { locale: it })} –{' '}
             {format(addDays(weekStart, 6), 'd MMM', { locale: it })}

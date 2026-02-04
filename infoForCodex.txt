@@ -50,3 +50,4 @@ Changelog
 - 2026-02-04: Import CSV piatti in /piatti e pulsante “Cancella Tutti” con eliminazione pianificazioni collegate.
 - 2026-02-04: Aggiunta nota UI sul formato CSV nella pagina Piatti.
 - 2026-02-04: Aggiunto export CSV dei piatti in /piatti.
+- 2026-02-04: Dashboard hero titolo in singola riga.
