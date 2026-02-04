@@ -1,5 +1,5 @@
 INFO FOR CODEX
-Ultimo aggiornamento: 2026-02-02
+Ultimo aggiornamento: 2026-02-04
 
 Scopo del progetto
 Family Meal Planner è una web app per la gestione dei pasti in famiglia. Consente di pianificare pranzi e cene su calendario, gestire un catalogo piatti con ingredienti, generare la lista della spesa e suggerire pasti per evitare ripetizioni e mantenere un’alimentazione bilanciata. Supporta l’uso multi‑famiglia con inviti e dati isolati per nucleo.
@@ -40,3 +40,5 @@ Prossimo obiettivo
 Changelog
 - 2026-02-02: Creato infoForCodex.txt con descrizione iniziale del progetto.
 - 2026-02-02: Aggiunte note sul flusso multi‑tab e branching parallelo.
+- 2026-02-04: Redesign UI basato su v4 (gradienti, bubble cards, day pills) su dashboard, calendario, spesa e impostazioni.
+- 2026-02-04: Fix calendario (range visibile, date click senza shift, parsing date‑only UTC) e alert duplicati.

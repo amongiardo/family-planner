@@ -1,8 +1,16 @@
 import type { Metadata } from 'next';
+import { Nunito } from 'next/font/google';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './globals.css';
 import { AuthProvider } from '@/lib/AuthContext';
 import { QueryProvider } from '@/lib/QueryProvider';
+
+const nunito = Nunito({
+  subsets: ['latin'],
+  weight: ['400', '600', '700', '800'],
+  variable: '--font-sans',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Family Meal Planner',
@@ -16,7 +24,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="it">
-      <body>
+      <body className={nunito.variable}>
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>
         </QueryProvider>
