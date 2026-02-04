@@ -10,6 +10,7 @@ datasource db {
 model Family {
   id        String   @id @default(uuid())
   name      String
+  city      String   @default("Roma")
   createdAt DateTime @default(now()) @map("created_at")
 
   users         User[]

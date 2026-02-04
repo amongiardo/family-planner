@@ -26,6 +26,7 @@ export default function ImpostazioniPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [familyName, setFamilyName] = useState('');
+  const [familyCity, setFamilyCity] = useState('Roma');
   const [inviteEmail, setInviteEmail] = useState('');
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -37,6 +38,9 @@ export default function ImpostazioniPage() {
     onSuccess: (data) => {
       if (data && !familyName) {
         setFamilyName(data.name);
+      }
+      if (data?.city) {
+        setFamilyCity(data.city);
       }
     },
   });
@@ -81,8 +85,8 @@ export default function ImpostazioniPage() {
   const handleUpdateFamily = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (familyName.trim()) {
-      updateFamilyMutation.mutate(familyName.trim());
+    if (familyName.trim() || familyCity.trim()) {
+      updateFamilyMutation.mutate({ name: familyName.trim(), city: familyCity.trim() });
     }
   };
 
@@ -149,6 +153,28 @@ export default function ImpostazioniPage() {
                       value={familyName}
                       onChange={(e) => setFamilyName(e.target.value)}
                       placeholder="Nome della famiglia"
+                    />
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      disabled={updateFamilyMutation.isPending}
+                    >
+                      {updateFamilyMutation.isPending ? (
+                        <Spinner size="sm" animation="border" />
+                      ) : (
+                        'Salva'
+                      )}
+                    </Button>
+                  </InputGroup>
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Città per meteo</Form.Label>
+                  <InputGroup>
+                    <Form.Control
+                      type="text"
+                      value={familyCity}
+                      onChange={(e) => setFamilyCity(e.target.value)}
+                      placeholder="Roma"
                     />
                     <Button
                       type="submit"

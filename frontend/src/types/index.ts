@@ -11,6 +11,7 @@ export interface User {
 export interface Family {
   id: string;
   name: string;
+  city?: string;
   createdAt: string;
   users: FamilyMember[];
 }

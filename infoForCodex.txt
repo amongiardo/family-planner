@@ -51,3 +51,5 @@ Changelog
 - 2026-02-04: Aggiunta nota UI sul formato CSV nella pagina Piatti.
 - 2026-02-04: Aggiunto export CSV dei piatti in /piatti.
 - 2026-02-04: Dashboard hero titolo in singola riga.
+- 2026-02-04: Dashboard apre settimana corrente con oggi selezionato di default.
+- 2026-02-04: Aggiunta città famiglia (default Roma) e meteo in dashboard con endpoint /api/weather.

@@ -41,9 +41,9 @@ export const authApi = {
 // Family
 export const familyApi = {
   get: () => fetchApi<Family>('/api/family'),
-  update: (name: string) => fetchApi<Family>('/api/family', {
+  update: (data: { name?: string; city?: string }) => fetchApi<Family>('/api/family', {
     method: 'PUT',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(data),
   }),
   invite: (email: string) => fetchApi<{ invite: FamilyInvite }>('/api/family/invite', {
     method: 'POST',
@@ -54,6 +54,14 @@ export const familyApi = {
     method: 'DELETE',
   }),
   validateInvite: (token: string) => fetchApi<{ email: string; family: { id: string; name: string } }>(`/api/family/invite/${token}`),
+};
+
+// Weather
+export const weatherApi = {
+  get: (city?: string) =>
+    fetchApi<{ city: string; temperature?: number; description?: string }>(
+      `/api/weather${city ? `?city=${encodeURIComponent(city)}` : ''}`
+    ),
 };
 
 // Dishes

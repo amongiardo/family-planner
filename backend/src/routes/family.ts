@@ -35,19 +35,22 @@ router.get('/', isAuthenticated, async (req, res, next) => {
   }
 });
 
-// Update family name
+// Update family name / city
 router.put('/', isAuthenticated, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
-    const { name } = req.body;
+    const { name, city } = req.body;
 
-    if (!name || typeof name !== 'string') {
-      return res.status(400).json({ error: 'Name is required' });
+    if ((!name || typeof name !== 'string') && (!city || typeof city !== 'string')) {
+      return res.status(400).json({ error: 'Name or city is required' });
     }
 
     const family = await prisma.family.update({
       where: { id: familyId },
-      data: { name },
+      data: {
+        ...(name && typeof name === 'string' ? { name } : {}),
+        ...(city && typeof city === 'string' ? { city: city.trim() } : {}),
+      },
     });
 
     res.json(family);

@@ -12,6 +12,7 @@ import dishesRoutes from './routes/dishes';
 import mealsRoutes from './routes/meals';
 import suggestionsRoutes from './routes/suggestions';
 import shoppingRoutes from './routes/shopping';
+import weatherRoutes from './routes/weather';
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ app.use('/api/dishes', dishesRoutes);
 app.use('/api/meals', mealsRoutes);
 app.use('/api/suggestions', suggestionsRoutes);
 app.use('/api/shopping', shoppingRoutes);
+app.use('/api/weather', weatherRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

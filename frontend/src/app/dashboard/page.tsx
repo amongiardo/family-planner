@@ -8,14 +8,23 @@ import { it } from 'date-fns/locale';
 import Link from 'next/link';
 import { FaPlus, FaLightbulb, FaCalendarAlt } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
-import { mealsApi, suggestionsApi, dishesApi } from '@/lib/api';
+import { mealsApi, suggestionsApi, dishesApi, familyApi, weatherApi } from '@/lib/api';
 import { MealPlan, MealType, Suggestion } from '@/types';
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const today = new Date();
-  const [weekStart, setWeekStart] = useState(startOfWeek(today, { weekStartsOn: 1 }));
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const { data: family } = useQuery({
+    queryKey: ['family'],
+    queryFn: familyApi.get,
+  });
+  const initialWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+  const initialDayIndex = Math.min(
+    Math.max(differenceInCalendarDays(today, initialWeekStart), 0),
+    6
+  );
+  const [weekStart, setWeekStart] = useState(initialWeekStart);
+  const [selectedDayIndex, setSelectedDayIndex] = useState(initialDayIndex);
   const rangeStart = format(weekStart, 'yyyy-MM-dd');
   const rangeEnd = format(addDays(weekStart, 6), 'yyyy-MM-dd');
   const touchStart = useRef<number | null>(null);
@@ -211,8 +220,12 @@ export default function DashboardPage() {
           <p className="dashboard-kicker">👋 Benvenuto!</p>
           <h1 className="dashboard-title">Meal Planner 🍽️</h1>
           <p className="dashboard-date">
-            Settimana {format(weekStart, 'd MMM', { locale: it })} –{' '}
-            {format(addDays(weekStart, 6), 'd MMM', { locale: it })}
+            {format(today, 'EEEE d MMMM yyyy', { locale: it })} · {city}
+            {weather?.temperature !== undefined && weather?.description
+              ? ` · ${Math.round(weather.temperature)}°C ${weather.description}`
+              : weather?.temperature !== undefined
+                ? ` · ${Math.round(weather.temperature)}°C`
+                : ''}
           </p>
         </div>
         <div className="dashboard-avatar">👨‍👩‍👧</div>
@@ -528,3 +541,8 @@ export default function DashboardPage() {
     </DashboardLayout>
   );
 }
+  const city = family?.city || 'Roma';
+  const { data: weather } = useQuery({
+    queryKey: ['weather', city],
+    queryFn: () => weatherApi.get(city),
+  });
