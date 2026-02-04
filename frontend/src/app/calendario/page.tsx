@@ -188,7 +188,12 @@ export default function CalendarioPage() {
   return (
     <DashboardLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="page-title">Calendario Pasti</h2>
+        <div className="d-flex align-items-center gap-2">
+          <h2 className="page-title mb-0">Calendario Pasti</h2>
+          {mealsFetching && !mealsLoading && (
+            <Spinner animation="border" size="sm" className="text-light" />
+          )}
+        </div>
       </div>
 
       <Card className="calendar-card">
