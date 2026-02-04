@@ -79,6 +79,10 @@ export const dishesApi = {
   delete: (id: string) => fetchApi<{ success: boolean }>(`/api/dishes/${id}`, {
     method: 'DELETE',
   }),
+  deleteAll: () => fetchApi<{ success: boolean; deletedMeals: number; deletedDishes: number }>(
+    '/api/dishes/all',
+    { method: 'DELETE' }
+  ),
 };
 
 // Meals

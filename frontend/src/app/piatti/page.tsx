@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Row,
   Col,
@@ -32,6 +32,7 @@ export default function PiattiPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
   const [editingDish, setEditingDish] = useState<Dish | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     category: 'primo' as DishCategory,
@@ -39,6 +40,8 @@ export default function PiattiPage() {
   });
   const [newIngredient, setNewIngredient] = useState('');
   const [error, setError] = useState('');
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const { data: dishes, isLoading } = useQuery({
     queryKey: ['dishes', categoryFilter, search],
@@ -76,6 +79,17 @@ export default function PiattiPage() {
     mutationFn: dishesApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dishes'] });
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: dishesApi.deleteAll,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dishes'] });
+      setImportStatus('Tutti i piatti e le pianificazioni correlate sono stati rimossi.');
     },
     onError: (err: Error) => {
       setError(err.message);
@@ -146,6 +160,12 @@ export default function PiattiPage() {
     }
   };
 
+  const handleDeleteAll = () => {
+    if (confirm('Eliminare tutti i piatti e le pianificazioni collegate?')) {
+      deleteAllMutation.mutate();
+    }
+  };
+
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
       case 'primo':
@@ -159,14 +179,124 @@ export default function PiattiPage() {
     }
   };
 
+  const parseCsvLine = (line: string) => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
+  const parseCsv = (text: string) => {
+    const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+    if (lines.length === 0) return [];
+    const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase().trim());
+    const nameIndex = headers.indexOf('name');
+    const categoryIndex = headers.indexOf('category');
+    const ingredientsIndex = headers.indexOf('ingredients');
+
+    if (nameIndex === -1 || categoryIndex === -1 || ingredientsIndex === -1) {
+      throw new Error('CSV non valido. Usa intestazioni: name, category, ingredients');
+    }
+
+    return lines.slice(1).map((line) => {
+      const cols = parseCsvLine(line);
+      const name = cols[nameIndex]?.trim();
+      const categoryRaw = cols[categoryIndex]?.trim().toLowerCase();
+      const ingredientsRaw = cols[ingredientsIndex] ?? '';
+      const ingredients = ingredientsRaw
+        .split(';')
+        .map((ing) => ing.trim())
+        .filter(Boolean);
+
+      if (!name) {
+        throw new Error('CSV non valido: riga con nome mancante');
+      }
+
+      if (!['primo', 'secondo', 'contorno'].includes(categoryRaw)) {
+        throw new Error(`Categoria non valida: ${categoryRaw}`);
+      }
+
+      return { name, category: categoryRaw as DishCategory, ingredients };
+    });
+  };
+
+  const handleImportCsv = async (file: File) => {
+    setError('');
+    setImportStatus(null);
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const parsed = parseCsv(text);
+
+      let created = 0;
+      let failed = 0;
+      for (const dish of parsed) {
+        try {
+          await dishesApi.create(dish);
+          created += 1;
+        } catch (err) {
+          failed += 1;
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['dishes'] });
+      setImportStatus(`Import completato: ${created} creati, ${failed} falliti.`);
+    } catch (err: any) {
+      setError(err?.message || 'Errore durante l’import CSV');
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="page-title">Gestione Piatti</h2>
-        <Button variant="primary" onClick={() => handleOpenModal()}>
-          <FaPlus className="me-2" /> Nuovo Piatto
-        </Button>
+        <div className="d-flex gap-2 flex-wrap">
+          <Button variant="outline-primary" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            {importing ? <Spinner size="sm" animation="border" /> : 'Importa CSV'}
+          </Button>
+          <Button variant="outline-danger" onClick={handleDeleteAll} disabled={deleteAllMutation.isPending}>
+            {deleteAllMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Cancella Tutti'}
+          </Button>
+          <Button variant="primary" onClick={() => handleOpenModal()}>
+            <FaPlus className="me-2" /> Nuovo Piatto
+          </Button>
+        </div>
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv"
+        className="d-none"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            handleImportCsv(file);
+          }
+        }}
+      />
 
       <Card className="mb-4">
         <Card.Body>
@@ -197,6 +327,12 @@ export default function PiattiPage() {
           </Row>
         </Card.Body>
       </Card>
+
+      {importStatus && (
+        <Alert variant="success" dismissible onClose={() => setImportStatus(null)}>
+          {importStatus}
+        </Alert>
+      )}
 
       {error && (
         <Alert variant="danger" dismissible onClose={() => setError('')}>

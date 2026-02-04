@@ -47,3 +47,4 @@ Changelog
 - 2026-02-04: Calendario non si resetta al mese corrente durante la navigazione (loading overlay senza unmount).
 - 2026-02-04: Calendario ottimizzato con caching (placeholder data) per ridurre flicker durante la navigazione.
 - 2026-02-04: Aggiunto micro‑spinner di stato nel titolo Calendario durante fetch.
+- 2026-02-04: Import CSV piatti in /piatti e pulsante “Cancella Tutti” con eliminazione pianificazioni collegate.

@@ -35,6 +35,26 @@ router.get('/', isAuthenticated, async (req, res, next) => {
   }
 });
 
+// Delete all dishes for family (and related meal plans)
+router.delete('/all', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+
+    const [deletedMeals, deletedDishes] = await prisma.$transaction([
+      prisma.mealPlan.deleteMany({ where: { familyId } }),
+      prisma.dish.deleteMany({ where: { familyId } }),
+    ]);
+
+    res.json({
+      success: true,
+      deletedMeals: deletedMeals.count,
+      deletedDishes: deletedDishes.count,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get single dish
 router.get('/:id', isAuthenticated, async (req, res, next) => {
   try {
@@ -140,20 +160,10 @@ router.delete('/:id', isAuthenticated, async (req, res, next) => {
       return res.status(404).json({ error: 'Dish not found' });
     }
 
-    // Check if dish is used in meal plans
-    const usedInMeals = await prisma.mealPlan.findFirst({
-      where: { dishId: id },
-    });
-
-    if (usedInMeals) {
-      return res.status(400).json({
-        error: 'Cannot delete dish that is used in meal plans',
-      });
-    }
-
-    await prisma.dish.delete({
-      where: { id },
-    });
+    await prisma.$transaction([
+      prisma.mealPlan.deleteMany({ where: { familyId, dishId: id } }),
+      prisma.dish.delete({ where: { id } }),
+    ]);
 
     res.json({ success: true });
   } catch (error) {
