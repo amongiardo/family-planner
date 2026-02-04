@@ -1,21 +1,30 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Row, Col, Card, Button, Badge, ListGroup, Spinner } from 'react-bootstrap';
-import { useQuery } from '@tanstack/react-query';
-import { format, addDays, isToday } from 'date-fns';
+import { useState, useMemo, useRef } from 'react';
+import { Row, Col, Card, Button, Badge, ListGroup, Spinner, Modal, Form, Alert } from 'react-bootstrap';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { format, addDays, startOfWeek, addWeeks, subWeeks, differenceInCalendarDays } from 'date-fns';
 import { it } from 'date-fns/locale';
 import Link from 'next/link';
 import { FaPlus, FaLightbulb, FaCalendarAlt } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
-import { mealsApi, suggestionsApi } from '@/lib/api';
-import { MealPlan, MealType } from '@/types';
+import { mealsApi, suggestionsApi, dishesApi } from '@/lib/api';
+import { MealPlan, MealType, Suggestion } from '@/types';
 
 export default function DashboardPage() {
+  const queryClient = useQueryClient();
   const today = new Date();
+  const [weekStart, setWeekStart] = useState(startOfWeek(today, { weekStartsOn: 1 }));
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-  const rangeStart = format(today, 'yyyy-MM-dd');
-  const rangeEnd = format(addDays(today, 6), 'yyyy-MM-dd');
+  const rangeStart = format(weekStart, 'yyyy-MM-dd');
+  const rangeEnd = format(addDays(weekStart, 6), 'yyyy-MM-dd');
+  const touchStart = useRef<number | null>(null);
+
+  const [showModal, setShowModal] = useState(false);
+  const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
+  const [selectedMealType, setSelectedMealType] = useState<MealType>('pranzo');
+  const [selectedDishId, setSelectedDishId] = useState('');
+  const [error, setError] = useState('');
 
   const { data: meals, isLoading: mealsLoading } = useQuery({
     queryKey: ['meals', 'range', rangeStart, rangeEnd],
@@ -35,18 +44,18 @@ export default function DashboardPage() {
   const days = useMemo(
     () =>
       [...Array(7)].map((_, i) => {
-        const day = addDays(today, i);
+        const day = addDays(weekStart, i);
         return {
           date: day,
           short: format(day, 'EE', { locale: it }).toUpperCase(),
           number: format(day, 'd'),
         };
       }),
-    [today]
+    [weekStart]
   );
 
   const getMealsByDayAndType = (dayOffset: number, mealType: MealType) => {
-    const day = addDays(today, dayOffset);
+    const day = addDays(weekStart, dayOffset);
     return meals?.filter(
       (meal) =>
         format(new Date(meal.date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd') &&
@@ -84,6 +93,117 @@ export default function DashboardPage() {
   const lunchMeal = getMealsByDayAndType(selectedDayIndex, 'pranzo')?.[0];
   const dinnerMeal = getMealsByDayAndType(selectedDayIndex, 'cena')?.[0];
 
+  const { data: dishes } = useQuery({
+    queryKey: ['dishes'],
+    queryFn: () => dishesApi.list(),
+  });
+
+  const { data: suggestions, isLoading: suggestionsLoading } = useQuery({
+    queryKey: ['suggestions', selectedDateStr || '', selectedMealType],
+    queryFn: () =>
+      selectedDateStr
+        ? suggestionsApi.get(selectedDateStr, selectedMealType)
+        : Promise.resolve([]),
+    enabled: !!selectedDateStr,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: mealsApi.create,
+    onSuccess: (meal) => {
+      const cachedMeals = queryClient.getQueryData<MealPlan[]>([
+        'meals',
+        'range',
+        rangeStart,
+        rangeEnd,
+      ]);
+      const alreadyPlanned = cachedMeals?.some((existing) => existing.id === meal.id);
+
+      if (alreadyPlanned) {
+        setError('Piatto già pianificato per questa data e pasto');
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+      queryClient.invalidateQueries({ queryKey: ['suggestions'] });
+      handleCloseModal();
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
+  const handleOpenModal = (mealType: MealType) => {
+    const dateStr = format(addDays(weekStart, selectedDayIndex), 'yyyy-MM-dd');
+    setSelectedDateStr(dateStr);
+    setSelectedMealType(mealType);
+    setSelectedDishId('');
+    setError('');
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedDateStr(null);
+    setSelectedDishId('');
+    setError('');
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDateStr || !selectedDishId) {
+      setError('Seleziona un piatto');
+      return;
+    }
+
+    createMutation.mutate({
+      date: selectedDateStr,
+      mealType: selectedMealType,
+      dishId: selectedDishId,
+    });
+  };
+
+  const handleAcceptSuggestion = (suggestion: Suggestion) => {
+    if (!selectedDateStr) return;
+
+    createMutation.mutate({
+      date: selectedDateStr,
+      mealType: selectedMealType,
+      dishId: suggestion.dish.id,
+      isSuggestion: true,
+    });
+  };
+
+  const handlePrevWeek = () => {
+    setWeekStart((prev) => subWeeks(prev, 1));
+    setSelectedDayIndex(0);
+  };
+
+  const handleNextWeek = () => {
+    setWeekStart((prev) => addWeeks(prev, 1));
+    setSelectedDayIndex(0);
+  };
+
+  const handleThisWeek = () => {
+    const start = startOfWeek(today, { weekStartsOn: 1 });
+    const index = Math.min(Math.max(differenceInCalendarDays(today, start), 0), 6);
+    setWeekStart(start);
+    setSelectedDayIndex(index);
+  };
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    touchStart.current = event.touches[0]?.clientX ?? null;
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (touchStart.current === null) return;
+    const diff = touchStart.current - event.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) handleNextWeek();
+      if (diff < 0) handlePrevWeek();
+    }
+    touchStart.current = null;
+  };
+
   return (
     <DashboardLayout>
       <div className="dashboard-hero">
@@ -94,20 +214,36 @@ export default function DashboardPage() {
             <br />
             Planner 🍽️
           </h1>
-          <p className="dashboard-date">{format(today, 'EEEE d MMMM yyyy', { locale: it })}</p>
+          <p className="dashboard-date">
+            Settimana {format(weekStart, 'd MMM', { locale: it })} –{' '}
+            {format(addDays(weekStart, 6), 'd MMM', { locale: it })}
+          </p>
         </div>
         <div className="dashboard-avatar">👨‍👩‍👧</div>
       </div>
 
-      <div className="day-strip">
+      <div className="d-flex align-items-center gap-2 mb-2">
+        <Button variant="outline-primary" size="sm" onClick={handlePrevWeek}>
+          ←
+        </Button>
+        <Button variant="outline-primary" size="sm" onClick={handleThisWeek}>
+          Oggi
+        </Button>
+        <Button variant="outline-primary" size="sm" onClick={handleNextWeek}>
+          →
+        </Button>
+      </div>
+
+      <div className="day-strip" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {days.map((day, i) => {
           const pranzo = getMealsByDayAndType(i, 'pranzo')?.length;
           const cena = getMealsByDayAndType(i, 'cena')?.length;
           const isActive = i === selectedDayIndex;
+          const isToday = format(day.date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
           return (
             <button
               key={day.number}
-              className={`day-pill ${isActive ? 'active' : ''}`}
+              className={`day-pill ${isActive ? 'active' : ''} ${isToday ? 'today' : ''}`}
               onClick={() => setSelectedDayIndex(i)}
             >
               <span className="day-pill-short">{day.short}</span>
@@ -156,14 +292,12 @@ export default function DashboardPage() {
                   </Card.Body>
                 </Card>
               ) : (
-                <Link href="/calendario" className="text-decoration-none">
-                  <Card className="meal-add-card mb-3">
-                    <Card.Body>
-                      <div className="meal-add-icon">＋</div>
-                      <span>Aggiungi Pranzo</span>
-                    </Card.Body>
-                  </Card>
-                </Link>
+                <Card className="meal-add-card mb-3" onClick={() => handleOpenModal('pranzo')}>
+                  <Card.Body>
+                    <div className="meal-add-icon">＋</div>
+                    <span>Aggiungi Pranzo</span>
+                  </Card.Body>
+                </Card>
               )}
 
               {dinnerMeal ? (
@@ -193,14 +327,12 @@ export default function DashboardPage() {
                   </Card.Body>
                 </Card>
               ) : (
-                <Link href="/calendario" className="text-decoration-none">
-                  <Card className="meal-add-card">
-                    <Card.Body>
-                      <div className="meal-add-icon">＋</div>
-                      <span>Aggiungi Cena</span>
-                    </Card.Body>
-                  </Card>
-                </Link>
+                <Card className="meal-add-card" onClick={() => handleOpenModal('cena')}>
+                  <Card.Body>
+                    <div className="meal-add-icon">＋</div>
+                    <span>Aggiungi Cena</span>
+                  </Card.Body>
+                </Card>
               )}
             </div>
           </Col>
@@ -275,6 +407,113 @@ export default function DashboardPage() {
           </Col>
         </Row>
       )}
+
+      <Modal show={showModal} onHide={handleCloseModal} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {selectedDateStr && format(new Date(`${selectedDateStr}T00:00:00`), 'EEEE d MMMM yyyy', { locale: it })}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Row>
+            <Col md={6}>
+              <div className="mb-3">
+                <div className="btn-group w-100" role="group">
+                  <Button
+                    variant={selectedMealType === 'pranzo' ? 'warning' : 'outline-warning'}
+                    onClick={() => setSelectedMealType('pranzo')}
+                  >
+                    🌞 Pranzo
+                  </Button>
+                  <Button
+                    variant={selectedMealType === 'cena' ? 'primary' : 'outline-primary'}
+                    onClick={() => setSelectedMealType('cena')}
+                    style={{
+                      backgroundColor: selectedMealType === 'cena' ? '#9b59b6' : 'transparent',
+                      borderColor: '#9b59b6',
+                      color: selectedMealType === 'cena' ? 'white' : '#9b59b6',
+                    }}
+                  >
+                    🌙 Cena
+                  </Button>
+                </div>
+              </div>
+
+              <h6 className="mb-2">Aggiungi piatto</h6>
+              {error && <Alert variant="danger">{error}</Alert>}
+              <Form onSubmit={handleSubmit}>
+                <Form.Group className="mb-3">
+                  <Form.Select
+                    value={selectedDishId}
+                    onChange={(e) => setSelectedDishId(e.target.value)}
+                  >
+                    <option value="">Seleziona un piatto...</option>
+                    {dishes?.map((dish) => (
+                      <option key={dish.id} value={dish.id}>
+                        [{dish.category}] {dish.name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={!selectedDishId || createMutation.isPending}
+                >
+                  {createMutation.isPending ? (
+                    <Spinner size="sm" animation="border" />
+                  ) : (
+                    <>
+                      <FaPlus className="me-1" /> Aggiungi
+                    </>
+                  )}
+                </Button>
+              </Form>
+            </Col>
+
+            <Col md={6}>
+              <div className="d-flex align-items-center gap-2 mb-3">
+                <FaLightbulb className="text-warning" />
+                <h6 className="mb-0">Suggerimenti</h6>
+              </div>
+
+              {suggestionsLoading ? (
+                <div className="text-center py-3">
+                  <Spinner size="sm" animation="border" variant="success" />
+                </div>
+              ) : suggestions && suggestions.length > 0 ? (
+                <ListGroup>
+                  {suggestions.map((suggestion) => (
+                    <ListGroup.Item
+                      key={suggestion.dish.id}
+                      action
+                      onClick={() => handleAcceptSuggestion(suggestion)}
+                      className="suggestion-card"
+                    >
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <Badge
+                            className={`${getCategoryBadgeClass(suggestion.dish.category)} me-2`}
+                          >
+                            {suggestion.dish.category}
+                          </Badge>
+                          {suggestion.dish.name}
+                        </div>
+                        <FaPlus className="text-success" />
+                      </div>
+                      <small className="text-muted">{suggestion.reason}</small>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              ) : (
+                <p className="text-muted small">
+                  Aggiungi piatti alla tua lista per ricevere suggerimenti
+                </p>
+              )}
+            </Col>
+          </Row>
+        </Modal.Body>
+      </Modal>
     </DashboardLayout>
   );
 }

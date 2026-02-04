@@ -171,6 +171,20 @@ body::after {
   transition: transform 0.2s ease, background 0.2s ease;
 }
 
+.day-pill.today {
+  background: rgba(255, 255, 255, 0.45);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 0 rgba(255, 255, 255, 0.4);
+}
+
+.day-pill.today .day-pill-short {
+  color: #fff;
+}
+
+.day-pill.today .day-pill-number {
+  color: #fff;
+}
+
 .day-pill.active {
   background: rgba(255, 255, 255, 0.95);
   border: none;
