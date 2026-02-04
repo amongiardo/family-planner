@@ -79,6 +79,7 @@ export const dishesApi = {
   delete: (id: string) => fetchApi<{ success: boolean }>(`/api/dishes/${id}`, {
     method: 'DELETE',
   }),
+  exportCsv: () => fetchApi<{ csv: string }>('/api/dishes/export'),
   deleteAll: () => fetchApi<{ success: boolean; deletedMeals: number; deletedDishes: number }>(
     '/api/dishes/all',
     { method: 'DELETE' }

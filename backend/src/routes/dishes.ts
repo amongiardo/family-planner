@@ -55,6 +55,31 @@ router.delete('/all', isAuthenticated, async (req, res, next) => {
   }
 });
 
+// Export dishes as CSV
+router.get('/export', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const dishes = await prisma.dish.findMany({
+      where: { familyId },
+      orderBy: { name: 'asc' },
+    });
+
+    const header = 'name,category,ingredients';
+    const lines = dishes.map((dish) => {
+      const name = `"${dish.name.replace(/"/g, '""')}"`;
+      const category = dish.category;
+      const ingredients = `"${(dish.ingredients || [])
+        .join(';')
+        .replace(/"/g, '""')}"`;
+      return `${name},${category},${ingredients}`;
+    });
+
+    res.json({ csv: [header, ...lines].join('\n') });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get single dish
 router.get('/:id', isAuthenticated, async (req, res, next) => {
   try {

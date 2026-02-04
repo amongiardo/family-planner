@@ -42,6 +42,7 @@ export default function PiattiPage() {
   const [error, setError] = useState('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { data: dishes, isLoading } = useQuery({
     queryKey: ['dishes', categoryFilter, search],
@@ -268,11 +269,37 @@ export default function PiattiPage() {
     }
   };
 
+  const handleExportCsv = async () => {
+    setError('');
+    setImportStatus(null);
+    setExporting(true);
+    try {
+      const { csv } = await dishesApi.exportCsv();
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'dishes_export.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setImportStatus('Export completato: file scaricato.');
+    } catch (err: any) {
+      setError(err?.message || 'Errore durante l’export CSV');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="page-title">Gestione Piatti</h2>
         <div className="d-flex gap-2 flex-wrap">
+          <Button variant="outline-primary" onClick={handleExportCsv} disabled={exporting}>
+            {exporting ? <Spinner size="sm" animation="border" /> : 'Esporta CSV'}
+          </Button>
           <Button variant="outline-primary" onClick={() => fileInputRef.current?.click()} disabled={importing}>
             {importing ? <Spinner size="sm" animation="border" /> : 'Importa CSV'}
           </Button>
