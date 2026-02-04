@@ -34,14 +34,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-vh-100">
+    <div className="app-shell min-vh-100">
       <Navbar />
       <Container fluid>
         <Row>
           <Col md={2} className="p-0">
             <Sidebar />
           </Col>
-          <Col md={10} className="py-4">
+          <Col md={10} className="py-4 content-area">
             {children}
           </Col>
         </Row>

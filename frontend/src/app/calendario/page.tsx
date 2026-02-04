@@ -186,48 +186,50 @@ export default function CalendarioPage() {
   return (
     <DashboardLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Calendario Pasti</h2>
+        <h2 className="page-title">Calendario Pasti</h2>
       </div>
 
-      <Card>
+      <Card className="calendar-card">
         <Card.Body>
           {mealsLoading ? (
             <div className="text-center py-5">
               <Spinner animation="border" variant="success" />
             </div>
           ) : (
-            <FullCalendar
-              plugins={[dayGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
-              locale="it"
-              firstDay={1}
-              headerToolbar={{
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,dayGridWeek',
-              }}
-              events={calendarEvents}
-              dateClick={handleDateClick}
-              eventContent={eventContent}
-              height="auto"
-              datesSet={(dateInfo) => {
-                const start = format(dateInfo.start, 'yyyy-MM-dd');
-                const end = format(subDays(dateInfo.end, 1), 'yyyy-MM-dd');
-                setVisibleRange({ start, end });
-              }}
-              eventClick={(info) => {
-                const meal = meals?.find((m) => m.id === info.event.id);
-                if (meal) {
-                  const dateStr = toDateOnly(meal.date);
-                  setSelectedDateStr(dateStr);
-                  setSelectedDate(toLocalDateFromDateOnly(dateStr));
-                  setSelectedMealType(meal.mealType);
-                  setSelectedDishId('');
-                  setError('');
-                  setShowModal(true);
-                }
-              }}
-            />
+            <div className="calendar-shell">
+              <FullCalendar
+                plugins={[dayGridPlugin, interactionPlugin]}
+                initialView="dayGridMonth"
+                locale="it"
+                firstDay={1}
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right: 'dayGridMonth,dayGridWeek',
+                }}
+                events={calendarEvents}
+                dateClick={handleDateClick}
+                eventContent={eventContent}
+                height="auto"
+                datesSet={(dateInfo) => {
+                  const start = format(dateInfo.start, 'yyyy-MM-dd');
+                  const end = format(subDays(dateInfo.end, 1), 'yyyy-MM-dd');
+                  setVisibleRange({ start, end });
+                }}
+                eventClick={(info) => {
+                  const meal = meals?.find((m) => m.id === info.event.id);
+                  if (meal) {
+                    const dateStr = toDateOnly(meal.date);
+                    setSelectedDateStr(dateStr);
+                    setSelectedDate(toLocalDateFromDateOnly(dateStr));
+                    setSelectedMealType(meal.mealType);
+                    setSelectedDishId('');
+                    setError('');
+                    setShowModal(true);
+                  }
+                }}
+              />
+            </div>
           )}
         </Card.Body>
       </Card>

@@ -65,7 +65,7 @@ export default function SpesaPage() {
   return (
     <DashboardLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Lista della Spesa</h2>
+        <h2 className="page-title">Lista della Spesa</h2>
         <Button
           variant="outline-primary"
           onClick={handleRegenerate}
@@ -104,9 +104,9 @@ export default function SpesaPage() {
             <Col xs="auto">
               {totalCount > 0 && (
                 <div className="d-flex align-items-center gap-2">
-                  <div className="progress" style={{ width: 100, height: 8 }}>
+                  <div className="progress bubble-progress" style={{ width: 120, height: 10 }}>
                     <div
-                      className="progress-bar bg-success"
+                      className="progress-bar bubble-progress-bar"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
