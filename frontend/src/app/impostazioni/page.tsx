@@ -139,6 +139,34 @@ export default function ImpostazioniPage() {
         </Alert>
       )}
 
+      <Card className="mb-4">
+        <Card.Header>Riepilogo</Card.Header>
+        <Card.Body>
+          <Row className="g-3">
+            <Col md={4}>
+              <div className="fw-bold">Famiglia</div>
+              <div className="text-muted">{family?.name || '—'}</div>
+            </Col>
+            <Col md={4}>
+              <div className="fw-bold">Città</div>
+              <div className="text-muted">{family?.city || 'Roma'}</div>
+            </Col>
+            <Col md={4}>
+              <div className="fw-bold">Membri</div>
+              {family?.users && family.users.length > 0 && (
+                <div className="mt-2">
+                  {family.users.map((member) => (
+                    <div key={member.id} className="text-muted small">
+                      {member.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
       <Row>
         <Col lg={6}>
           <Card className="mb-4">

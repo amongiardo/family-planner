@@ -54,3 +54,5 @@ Changelog
 - 2026-02-04: Dashboard apre settimana corrente con oggi selezionato di default.
 - 2026-02-04: Aggiunta città famiglia (default Roma) e meteo in dashboard con endpoint /api/weather.
 - 2026-02-04: Fix ReferenceError in dashboard (weather query dentro componente).
+- 2026-02-04: Impostazioni: aggiunto riepilogo con nome famiglia, città e numero membri.
+- 2026-02-04: Impostazioni: riepilogo mostra solo i nomi dei membri (senza totale).
