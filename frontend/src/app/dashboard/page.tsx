@@ -222,16 +222,31 @@ export default function DashboardPage() {
         <div className="dashboard-avatar">👨‍👩‍👧</div>
       </div>
 
-      <div className="d-flex align-items-center gap-2 mb-2">
-        <Button variant="outline-primary" size="sm" onClick={handlePrevWeek}>
-          ←
-        </Button>
+      <div className="week-strip">
         <Button variant="outline-primary" size="sm" onClick={handleThisWeek}>
           Oggi
         </Button>
-        <Button variant="outline-primary" size="sm" onClick={handleNextWeek}>
-          →
-        </Button>
+        {[-1, 0, 1].map((offset) => {
+          const base = addWeeks(weekStart, offset);
+          const label = `${format(base, 'd MMM', { locale: it })}–${format(
+            addDays(base, 6),
+            'd MMM',
+            { locale: it }
+          )}`;
+          const isActive = offset === 0;
+          return (
+            <button
+              key={label}
+              className={`week-pill ${isActive ? 'active' : ''}`}
+              onClick={() => {
+                setWeekStart(base);
+                setSelectedDayIndex(0);
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="day-strip" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
@@ -246,7 +261,6 @@ export default function DashboardPage() {
               className={`day-pill ${isActive ? 'active' : ''} ${isToday ? 'today' : ''}`}
               onClick={() => setSelectedDayIndex(i)}
             >
-              {isToday && <span className="day-pill-today">Oggi</span>}
               <span className="day-pill-short">{day.short}</span>
               <span className="day-pill-number">{day.number}</span>
               <div className="day-pill-dots">

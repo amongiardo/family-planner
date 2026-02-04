@@ -33,7 +33,7 @@ export default function CalendarioPage() {
   ]);
   const toLocalDateFromDateOnly = useCallback((value: string) => new Date(`${value}T00:00:00`), []);
 
-  const { data: meals, isLoading: mealsLoading } = useQuery({
+  const { data: meals, isLoading: mealsLoading, isFetching: mealsFetching } = useQuery({
     queryKey: ['meals', 'range', visibleRange.start, visibleRange.end],
     queryFn: () => mealsApi.getRange(visibleRange.start, visibleRange.end),
     enabled: Boolean(visibleRange.start && visibleRange.end),
@@ -191,46 +191,45 @@ export default function CalendarioPage() {
 
       <Card className="calendar-card">
         <Card.Body>
-          {mealsLoading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" variant="success" />
-            </div>
-          ) : (
-            <div className="calendar-shell">
-              <FullCalendar
-                plugins={[dayGridPlugin, interactionPlugin]}
-                initialView="dayGridMonth"
-                locale="it"
-                firstDay={1}
-                headerToolbar={{
-                  left: 'prev,next today',
-                  center: 'title',
-                  right: 'dayGridMonth,dayGridWeek',
-                }}
-                events={calendarEvents}
-                dateClick={handleDateClick}
-                eventContent={eventContent}
-                height="auto"
-                datesSet={(dateInfo) => {
-                  const start = format(dateInfo.start, 'yyyy-MM-dd');
-                  const end = format(subDays(dateInfo.end, 1), 'yyyy-MM-dd');
-                  setVisibleRange({ start, end });
-                }}
-                eventClick={(info) => {
-                  const meal = meals?.find((m) => m.id === info.event.id);
-                  if (meal) {
-                    const dateStr = toDateOnly(meal.date);
-                    setSelectedDateStr(dateStr);
-                    setSelectedDate(toLocalDateFromDateOnly(dateStr));
-                    setSelectedMealType(meal.mealType);
-                    setSelectedDishId('');
-                    setError('');
-                    setShowModal(true);
-                  }
-                }}
-              />
-            </div>
-          )}
+          <div className="calendar-shell position-relative">
+            {(mealsLoading || mealsFetching) && (
+              <div className="calendar-loading">
+                <Spinner animation="border" variant="success" />
+              </div>
+            )}
+            <FullCalendar
+              plugins={[dayGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              locale="it"
+              firstDay={1}
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,dayGridWeek',
+              }}
+              events={calendarEvents}
+              dateClick={handleDateClick}
+              eventContent={eventContent}
+              height="auto"
+              datesSet={(dateInfo) => {
+                const start = format(dateInfo.start, 'yyyy-MM-dd');
+                const end = format(subDays(dateInfo.end, 1), 'yyyy-MM-dd');
+                setVisibleRange({ start, end });
+              }}
+              eventClick={(info) => {
+                const meal = meals?.find((m) => m.id === info.event.id);
+                if (meal) {
+                  const dateStr = toDateOnly(meal.date);
+                  setSelectedDateStr(dateStr);
+                  setSelectedDate(toLocalDateFromDateOnly(dateStr));
+                  setSelectedMealType(meal.mealType);
+                  setSelectedDishId('');
+                  setError('');
+                  setShowModal(true);
+                }
+              }}
+            />
+          </div>
         </Card.Body>
       </Card>
 

@@ -154,6 +154,34 @@ body::after {
   padding: 12px 0 20px;
 }
 
+.week-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.week-pill {
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.week-pill.active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #3a2f4f;
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
 .day-strip::-webkit-scrollbar {
   display: none;
 }
@@ -172,38 +200,14 @@ body::after {
 }
 
 .day-pill.today {
-  background: var(--accent-lunch);
+  background: rgba(255, 255, 255, 0.18);
   border-color: var(--accent-lunch-shadow);
-  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.15);
-}
-
-.day-pill-today {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #6a46b2;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.12);
-}
-
-.day-pill.today .day-pill-short {
-  color: #4e342e;
-}
-
-.day-pill.today .day-pill-number {
-  color: #4e342e;
+  box-shadow: 0 4px 0 rgba(249, 168, 37, 0.5);
 }
 
 .day-pill.active {
-  background: var(--accent-lunch);
-  border-color: var(--accent-lunch-shadow);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #3a2f4f;
   transform: translateY(-2px);
 }
 
@@ -216,7 +220,7 @@ body::after {
 }
 
 .day-pill.active .day-pill-short {
-  color: #4e342e;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .day-pill-number {
@@ -228,7 +232,7 @@ body::after {
 }
 
 .day-pill.active .day-pill-number {
-  color: #4e342e;
+  color: #fff;
 }
 
 .day-pill-dots {
@@ -363,13 +367,14 @@ body::after {
 }
 
 .btn-outline-primary {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.6);
+  color: #3a2f4f;
+  border-color: rgba(58, 47, 79, 0.5);
+  background: rgba(255, 255, 255, 0.85);
 }
 
 .btn-outline-primary:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.95);
+  color: #3a2f4f;
 }
 
 .btn-outline-success {
@@ -547,6 +552,17 @@ body::after {
   background: rgba(255, 255, 255, 0.92);
   border-radius: 22px;
   padding: 12px;
+}
+
+.calendar-loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
 }
 
 .calendar-shell .fc .fc-col-header-cell-cushion {

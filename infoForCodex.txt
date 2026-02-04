@@ -44,3 +44,4 @@ Changelog
 - 2026-02-04: Fix calendario (range visibile, date click senza shift, parsing date‑only UTC) e alert duplicati.
 - 2026-02-04: Dashboard aggiornata a settimana lun‑dom con navigazione e modal add‑meal inline.
 - 2026-02-04: Day strip dashboard: badge "Oggi" e highlight giallo per oggi/selected.
+- 2026-02-04: Calendario non si resetta al mese corrente durante la navigazione (loading overlay senza unmount).
