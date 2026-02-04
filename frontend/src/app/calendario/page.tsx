@@ -37,6 +37,8 @@ export default function CalendarioPage() {
     queryKey: ['meals', 'range', visibleRange.start, visibleRange.end],
     queryFn: () => mealsApi.getRange(visibleRange.start, visibleRange.end),
     enabled: Boolean(visibleRange.start && visibleRange.end),
+    placeholderData: (previous) => previous,
+    staleTime: 30000,
   });
 
   const { data: dishes } = useQuery({
@@ -192,7 +194,7 @@ export default function CalendarioPage() {
       <Card className="calendar-card">
         <Card.Body>
           <div className="calendar-shell position-relative">
-            {(mealsLoading || mealsFetching) && (
+            {mealsLoading && !meals && (
               <div className="calendar-loading">
                 <Spinner animation="border" variant="success" />
               </div>

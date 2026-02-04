@@ -565,6 +565,10 @@ body::after {
   z-index: 2;
 }
 
+.calendar-shell .fc {
+  transition: opacity 0.2s ease;
+}
+
 .calendar-shell .fc .fc-col-header-cell-cushion {
   color: #3a2f4f;
 }

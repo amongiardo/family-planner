@@ -47,4 +47,6 @@ Quando si lavora con più sessioni Codex in parallelo:
 - Quando richiesto, crea commit con messaggi chiari e brevi.
 - Non includere file non correlati.
 - Aggiorna sempre `infoForCodex.txt` e `AGENTS.md` con lo stato corrente prima di ogni commit.
+
+Ultimo aggiornamento: 2026-02-04
 </INSTRUCTIONS>
