@@ -13,6 +13,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, dishesApi, suggestionsApi } from '@/lib/api';
 import { MealPlan, Dish, MealType, Suggestion } from '@/types';
 import StatusModal from '@/components/StatusModal';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function CalendarioPage() {
   const queryClient = useQueryClient();
@@ -27,6 +28,7 @@ export default function CalendarioPage() {
   const [selectedMealType, setSelectedMealType] = useState<MealType>('pranzo');
   const [selectedDishId, setSelectedDishId] = useState('');
   const [error, setError] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const toDateOnly = useCallback((value: string) => value.split('T')[0], []);
   const toLocalDate = useCallback((value: string) => new Date(`${toDateOnly(value)}T00:00:00`), [
@@ -150,9 +152,7 @@ export default function CalendarioPage() {
   };
 
   const handleDeleteMeal = (mealId: string) => {
-    if (confirm('Rimuovere questo piatto dalla pianificazione?')) {
-      deleteMutation.mutate(mealId);
-    }
+    setPendingDeleteId(mealId);
   };
 
   const getCategoryBadgeClass = (category: string) => {
@@ -392,6 +392,18 @@ export default function CalendarioPage() {
           </Row>
         </Modal.Body>
       </Modal>
+
+      <ConfirmModal
+        show={Boolean(pendingDeleteId)}
+        message="Rimuovere questo piatto dalla pianificazione?"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          if (pendingDeleteId) {
+            deleteMutation.mutate(pendingDeleteId);
+          }
+          setPendingDeleteId(null);
+        }}
+      />
     </DashboardLayout>
   );
 }

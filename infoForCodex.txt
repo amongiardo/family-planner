@@ -59,3 +59,4 @@ Changelog
 - 2026-02-04: Dashboard: aggiunto tasto rimozione pranzo/cena per poter riscegliere.
 - 2026-02-04: Sostituiti gli Alert con modali di stato (StatusModal).
 - 2026-02-04: Calendario: rimozione rapida evento con bottone sulla card evento.
+- 2026-02-04: Sostituiti i confirm() con ConfirmModal (dashboard, calendario, piatti, spesa, impostazioni).

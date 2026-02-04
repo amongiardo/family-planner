@@ -19,6 +19,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { dishesApi } from '@/lib/api';
 import { Dish, DishCategory } from '@/types';
 import StatusModal from '@/components/StatusModal';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const categoryLabels: Record<DishCategory, string> = {
   primo: 'Primo',
@@ -43,6 +44,8 @@ export default function PiattiPage() {
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   const { data: dishes, isLoading } = useQuery({
     queryKey: ['dishes', categoryFilter, search],
@@ -156,15 +159,11 @@ export default function PiattiPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Sei sicuro di voler eliminare questo piatto?')) {
-      deleteMutation.mutate(id);
-    }
+    setPendingDeleteId(id);
   };
 
   const handleDeleteAll = () => {
-    if (confirm('Eliminare tutti i piatti e le pianificazioni collegate?')) {
-      deleteAllMutation.mutate();
-    }
+    setConfirmDeleteAll(true);
   };
 
   const getCategoryBadgeClass = (category: string) => {
@@ -528,6 +527,28 @@ export default function PiattiPage() {
           </Modal.Footer>
         </Form>
       </Modal>
+
+      <ConfirmModal
+        show={Boolean(pendingDeleteId)}
+        message="Sei sicuro di voler eliminare questo piatto?"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          if (pendingDeleteId) {
+            deleteMutation.mutate(pendingDeleteId);
+          }
+          setPendingDeleteId(null);
+        }}
+      />
+
+      <ConfirmModal
+        show={confirmDeleteAll}
+        message="Eliminare tutti i piatti e le pianificazioni collegate?"
+        onCancel={() => setConfirmDeleteAll(false)}
+        onConfirm={() => {
+          setConfirmDeleteAll(false);
+          deleteAllMutation.mutate();
+        }}
+      />
     </DashboardLayout>
   );
 }

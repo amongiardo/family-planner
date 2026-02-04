@@ -21,6 +21,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { familyApi } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import StatusModal from '@/components/StatusModal';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function ImpostazioniPage() {
   const queryClient = useQueryClient();
@@ -31,6 +32,7 @@ export default function ImpostazioniPage() {
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [pendingInviteDelete, setPendingInviteDelete] = useState<string | null>(null);
 
   const { data: family, isLoading } = useQuery({
     queryKey: ['family'],
@@ -109,9 +111,7 @@ export default function ImpostazioniPage() {
   };
 
   const handleDeleteInvite = (id: string) => {
-    if (confirm('Annullare questo invito?')) {
-      deleteInviteMutation.mutate(id);
-    }
+    setPendingInviteDelete(id);
   };
 
   if (isLoading) {
@@ -347,6 +347,18 @@ export default function ImpostazioniPage() {
           </Card>
         </Col>
       </Row>
+
+      <ConfirmModal
+        show={Boolean(pendingInviteDelete)}
+        message="Annullare questo invito?"
+        onCancel={() => setPendingInviteDelete(null)}
+        onConfirm={() => {
+          if (pendingInviteDelete) {
+            deleteInviteMutation.mutate(pendingInviteDelete);
+          }
+          setPendingInviteDelete(null);
+        }}
+      />
     </DashboardLayout>
   );
 }

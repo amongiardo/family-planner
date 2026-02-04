@@ -10,11 +10,13 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { shoppingApi } from '@/lib/api';
 import { ShoppingListItem } from '@/types';
 import StatusModal from '@/components/StatusModal';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function SpesaPage() {
   const queryClient = useQueryClient();
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [dismissError, setDismissError] = useState(false);
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const weekString = format(currentWeek, 'yyyy-MM-dd');
 
   const { data: shoppingList, isLoading, error } = useQuery({
@@ -54,9 +56,7 @@ export default function SpesaPage() {
   };
 
   const handleRegenerate = () => {
-    if (confirm('Rigenerare la lista? Le modifiche manuali andranno perse.')) {
-      regenerateMutation.mutate();
-    }
+    setShowRegenerateConfirm(true);
   };
 
   const items = shoppingList?.items || [];
@@ -197,6 +197,16 @@ export default function SpesaPage() {
           </Card.Body>
         </Card>
       )}
+
+      <ConfirmModal
+        show={showRegenerateConfirm}
+        message="Rigenerare la lista? Le modifiche manuali andranno perse."
+        onCancel={() => setShowRegenerateConfirm(false)}
+        onConfirm={() => {
+          setShowRegenerateConfirm(false);
+          regenerateMutation.mutate();
+        }}
+      />
     </DashboardLayout>
   );
 }

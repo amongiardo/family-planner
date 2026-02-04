@@ -11,6 +11,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, suggestionsApi, dishesApi, familyApi, weatherApi } from '@/lib/api';
 import { MealPlan, MealType, Suggestion } from '@/types';
 import StatusModal from '@/components/StatusModal';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
@@ -40,6 +41,7 @@ export default function DashboardPage() {
   const [selectedMealType, setSelectedMealType] = useState<MealType>('pranzo');
   const [selectedDishId, setSelectedDishId] = useState('');
   const [error, setError] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { data: meals, isLoading: mealsLoading } = useQuery({
     queryKey: ['meals', 'range', rangeStart, rangeEnd],
@@ -196,9 +198,7 @@ export default function DashboardPage() {
   };
 
   const handleRemoveMeal = (mealId: string) => {
-    if (confirm('Rimuovere questo pasto dalla giornata?')) {
-      deleteMealMutation.mutate(mealId);
-    }
+    setPendingDeleteId(mealId);
   };
 
   const handlePrevWeek = () => {
@@ -582,6 +582,18 @@ export default function DashboardPage() {
           </Row>
         </Modal.Body>
       </Modal>
+
+      <ConfirmModal
+        show={Boolean(pendingDeleteId)}
+        message="Rimuovere questo pasto dalla giornata?"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          if (pendingDeleteId) {
+            deleteMealMutation.mutate(pendingDeleteId);
+          }
+          setPendingDeleteId(null);
+        }}
+      />
     </DashboardLayout>
   );
 }
