@@ -18,6 +18,11 @@ export default function DashboardPage() {
     queryKey: ['family'],
     queryFn: familyApi.get,
   });
+  const city = family?.city || 'Roma';
+  const { data: weather } = useQuery({
+    queryKey: ['weather', city],
+    queryFn: () => weatherApi.get(city),
+  });
   const initialWeekStart = startOfWeek(today, { weekStartsOn: 1 });
   const initialDayIndex = Math.min(
     Math.max(differenceInCalendarDays(today, initialWeekStart), 0),
@@ -541,8 +546,3 @@ export default function DashboardPage() {
     </DashboardLayout>
   );
 }
-  const city = family?.city || 'Roma';
-  const { data: weather } = useQuery({
-    queryKey: ['weather', city],
-    queryFn: () => weatherApi.get(city),
-  });

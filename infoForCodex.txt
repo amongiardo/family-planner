@@ -53,3 +53,4 @@ Changelog
 - 2026-02-04: Dashboard hero titolo in singola riga.
 - 2026-02-04: Dashboard apre settimana corrente con oggi selezionato di default.
 - 2026-02-04: Aggiunta città famiglia (default Roma) e meteo in dashboard con endpoint /api/weather.
+- 2026-02-04: Fix ReferenceError in dashboard (weather query dentro componente).
