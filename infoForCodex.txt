@@ -56,3 +56,4 @@ Changelog
 - 2026-02-04: Fix ReferenceError in dashboard (weather query dentro componente).
 - 2026-02-04: Impostazioni: aggiunto riepilogo con nome famiglia, città e numero membri.
 - 2026-02-04: Impostazioni: riepilogo mostra solo i nomi dei membri (senza totale).
+- 2026-02-04: Dashboard: aggiunto tasto rimozione pranzo/cena per poter riscegliere.

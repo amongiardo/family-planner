@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, differenceInCalendarDays } from 'date-fns';
 import { it } from 'date-fns/locale';
 import Link from 'next/link';
-import { FaPlus, FaLightbulb, FaCalendarAlt } from 'react-icons/fa';
+import { FaPlus, FaLightbulb, FaCalendarAlt, FaTimes } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, suggestionsApi, dishesApi, familyApi, weatherApi } from '@/lib/api';
 import { MealPlan, MealType, Suggestion } from '@/types';
@@ -146,6 +146,13 @@ export default function DashboardPage() {
     },
   });
 
+  const deleteMealMutation = useMutation({
+    mutationFn: mealsApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+    },
+  });
+
   const handleOpenModal = (mealType: MealType) => {
     const dateStr = format(addDays(weekStart, selectedDayIndex), 'yyyy-MM-dd');
     setSelectedDateStr(dateStr);
@@ -185,6 +192,12 @@ export default function DashboardPage() {
       dishId: suggestion.dish.id,
       isSuggestion: true,
     });
+  };
+
+  const handleRemoveMeal = (mealId: string) => {
+    if (confirm('Rimuovere questo pasto dalla giornata?')) {
+      deleteMealMutation.mutate(mealId);
+    }
   };
 
   const handlePrevWeek = () => {
@@ -298,10 +311,20 @@ export default function DashboardPage() {
                 <Card className="meal-bubble-card meal-bubble-lunch mb-3">
                   <Card.Body>
                     <div className="meal-bubble-header">
-                      <span className="meal-bubble-label">☀️ Pranzo</span>
-                      <Badge className={getCategoryBadgeClass(lunchMeal.dish.category)}>
-                        {lunchMeal.dish.category}
-                      </Badge>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="meal-bubble-label">☀️ Pranzo</span>
+                        <Badge className={getCategoryBadgeClass(lunchMeal.dish.category)}>
+                          {lunchMeal.dish.category}
+                        </Badge>
+                      </div>
+                      <button
+                        type="button"
+                        className="meal-bubble-delete"
+                        onClick={() => handleRemoveMeal(lunchMeal.id)}
+                        aria-label="Rimuovi pranzo"
+                      >
+                        <FaTimes />
+                      </button>
                     </div>
                     <div className="meal-bubble-main">
                       <div className="meal-bubble-emoji">{pickEmoji(lunchMeal)}</div>
@@ -333,10 +356,20 @@ export default function DashboardPage() {
                 <Card className="meal-bubble-card meal-bubble-dinner">
                   <Card.Body>
                     <div className="meal-bubble-header">
-                      <span className="meal-bubble-label">🌙 Cena</span>
-                      <Badge className={getCategoryBadgeClass(dinnerMeal.dish.category)}>
-                        {dinnerMeal.dish.category}
-                      </Badge>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="meal-bubble-label">🌙 Cena</span>
+                        <Badge className={getCategoryBadgeClass(dinnerMeal.dish.category)}>
+                          {dinnerMeal.dish.category}
+                        </Badge>
+                      </div>
+                      <button
+                        type="button"
+                        className="meal-bubble-delete"
+                        onClick={() => handleRemoveMeal(dinnerMeal.id)}
+                        aria-label="Rimuovi cena"
+                      >
+                        <FaTimes />
+                      </button>
                     </div>
                     <div className="meal-bubble-main">
                       <div className="meal-bubble-emoji">{pickEmoji(dinnerMeal)}</div>

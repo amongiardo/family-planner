@@ -281,6 +281,20 @@ body::after {
   font-weight: 900;
 }
 
+.meal-bubble-delete {
+  border: none;
+  background: rgba(255, 255, 255, 0.6);
+  color: #4e342e;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.12);
+}
+
 .meal-bubble-label {
   text-transform: uppercase;
   letter-spacing: 1px;
