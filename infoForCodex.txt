@@ -72,3 +72,4 @@ Changelog
 - 2026-02-06: Rimosso PostgreSQL 18 dal Mac di sviluppo; standardizzato su PostgreSQL 16 (porta 5432).
 - 2026-02-06: /auth/me ora ritorna 200 con user null quando non autenticato (evita 401 in console).
 - 2026-02-06: dev_stop.sh ora termina anche i processi node rimasti sulle porte 3000-3003.
+- 2026-02-06: Pagina /piatti: pulsanti CSV con stile soft; “Cancella Tutti” versione soft rossa.

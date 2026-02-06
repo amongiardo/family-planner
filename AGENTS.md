@@ -48,5 +48,5 @@ Quando si lavora con più sessioni Codex in parallelo:
 - Non includere file non correlati.
 - Aggiorna sempre `infoForCodex.txt` e `AGENTS.md` con lo stato corrente prima di ogni commit.
 
-Ultimo aggiornamento: 2026-02-06 (auth/me 200 quando non loggato, dev_stop kill processi)
+Ultimo aggiornamento: 2026-02-06 (piatti: bottoni CSV soft, delete soft rosso)
 </INSTRUCTIONS>

@@ -296,13 +296,13 @@ export default function PiattiPage() {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="page-title">Gestione Piatti</h2>
         <div className="d-flex gap-2 flex-wrap">
-          <Button variant="outline-primary" onClick={handleExportCsv} disabled={exporting}>
+          <Button variant="primary" className="btn-primary-soft" onClick={handleExportCsv} disabled={exporting}>
             {exporting ? <Spinner size="sm" animation="border" /> : 'Esporta CSV'}
           </Button>
-          <Button variant="outline-primary" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+          <Button variant="primary" className="btn-primary-soft" onClick={() => fileInputRef.current?.click()} disabled={importing}>
             {importing ? <Spinner size="sm" animation="border" /> : 'Importa CSV'}
           </Button>
-          <Button variant="outline-danger" onClick={handleDeleteAll} disabled={deleteAllMutation.isPending}>
+          <Button variant="primary" className="btn-danger-soft" onClick={handleDeleteAll} disabled={deleteAllMutation.isPending}>
             {deleteAllMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Cancella Tutti'}
           </Button>
           <Button variant="primary" onClick={() => handleOpenModal()}>
