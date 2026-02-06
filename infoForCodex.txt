@@ -1,5 +1,5 @@
 INFO FOR CODEX
-Ultimo aggiornamento: 2026-02-04
+Ultimo aggiornamento: 2026-02-06
 
 Scopo del progetto
 Family Meal Planner è una web app per la gestione dei pasti in famiglia. Consente di pianificare pranzi e cene su calendario, gestire un catalogo piatti con ingredienti, generare la lista della spesa e suggerire pasti per evitare ripetizioni e mantenere un’alimentazione bilanciata. Supporta l’uso multi‑famiglia con inviti e dati isolati per nucleo.
@@ -29,6 +29,7 @@ Note operative
 - Frontend: `frontend/` con pagine App Router.
 - Avvio: vedere `install.txt`.
  - Flusso multi‑tab: un branch per tab; sincronizzare su `develop`.
+- PostgreSQL: usa PG16 su porta 5432 (PG18 rimosso).
 
 Stato branch
 - Branch attuale: feature/gestione-calendario.
@@ -68,3 +69,4 @@ Changelog
 - 2026-02-04: Documentazione prerequisiti aggiornata (PG16 consigliato).
 - 2026-02-04: .env.example aggiornato con nota su PostgreSQL 16.
 - 2026-02-04: Aggiunti script dev_start/dev_stop e documentazione in install.txt/README.
+- 2026-02-06: Rimosso PostgreSQL 18 dal Mac di sviluppo; standardizzato su PostgreSQL 16 (porta 5432).

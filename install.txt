@@ -3,7 +3,7 @@ FAMILY MEAL PLANNER - INSTALLAZIONE E AVVIO
 PRIMA INSTALLAZIONE
 1) Prerequisiti
    - Node.js 18+
-   - PostgreSQL 16 (consigliato) o 14+
+   - PostgreSQL 16 (consigliato)
 
 2) Database
    - Crea il DB:
@@ -45,3 +45,4 @@ OPZIONE RAPIDA (script)
 NOTE
 - L'API gira su http://localhost:3001
 - Il frontend gira su http://localhost:3000
+- Su macOS: usa PostgreSQL 16 su porta 5432 (PG18 rimosso per evitare conflitti).
