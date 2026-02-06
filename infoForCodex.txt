@@ -66,4 +66,5 @@ Changelog
 - 2026-02-04: Password postgres reset su PG16/PG18; creato db_credentials.txt con liste DB.
 - 2026-02-04: Script dev_start/dev_stop aggiornati per usare PostgreSQL 16.
 - 2026-02-04: Documentazione prerequisiti aggiornata (PG16 consigliato).
+- 2026-02-04: .env.example aggiornato con nota su PostgreSQL 16.
 - 2026-02-04: Aggiunti script dev_start/dev_stop e documentazione in install.txt/README.
