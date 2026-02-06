@@ -60,3 +60,4 @@ Changelog
 - 2026-02-04: Sostituiti gli Alert con modali di stato (StatusModal).
 - 2026-02-04: Calendario: rimozione rapida evento con bottone sulla card evento.
 - 2026-02-04: Sostituiti i confirm() con ConfirmModal (dashboard, calendario, piatti, spesa, impostazioni).
+- 2026-02-04: Fix 500 su /auth/me: isAuthenticated gestisce req.isAuthenticated mancante.
