@@ -61,4 +61,7 @@ Changelog
 - 2026-02-04: Calendario: rimozione rapida evento con bottone sulla card evento.
 - 2026-02-04: Sostituiti i confirm() con ConfirmModal (dashboard, calendario, piatti, spesa, impostazioni).
 - 2026-02-04: Fix 500 su /auth/me: isAuthenticated gestisce req.isAuthenticated mancante.
+- 2026-02-04: Script reset_db_passwords.sh aggiornato (psql via utente postgres, cd /tmp).
+- 2026-02-04: Script reset_db_passwords.sh aggiorna stop/start automatico se già in esecuzione.
+- 2026-02-04: Password postgres reset su PG16/PG18; creato db_credentials.txt con liste DB.
 - 2026-02-04: Aggiunti script dev_start/dev_stop e documentazione in install.txt/README.
