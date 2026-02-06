@@ -17,6 +17,7 @@ export interface ShoppingListItem {
 export interface SuggestionParams {
   date: string;
   mealType: 'pranzo' | 'cena';
+  slotCategory: 'primo' | 'secondo' | 'contorno';
 }
 
 export interface SuggestionResult {

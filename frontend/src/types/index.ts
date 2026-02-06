@@ -41,6 +41,7 @@ export interface MealPlan {
   familyId: string;
   date: string;
   mealType: MealType;
+  slotCategory: DishCategory;
   dishId: string;
   dish: Dish;
   isSuggestion: boolean;

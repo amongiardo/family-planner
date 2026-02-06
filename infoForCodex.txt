@@ -77,3 +77,7 @@ Changelog
 - 2026-02-06: /piatti: import/export CSV in modale; export con pulsante download e stile modal aggiornato.
 - 2026-02-06: Aggiunta pagina Statistiche (week/month) con piatti più frequenti e non mangiati.
 - 2026-02-06: Route Statistiche spostata da /menu a /statistiche.
+- 2026-02-06: Migrazione MealPlan con slot categoria (primo/secondo/contorno) e vincolo unico per slot.
+- 2026-02-06: Dashboard/Calendario aggiornati con 3 select per pranzo e cena (slot categoria).
+- 2026-02-06: /piatti aggiunta auto-programmazione pasti con range selezionabili.
+- 2026-02-06: Suggerimenti aggiornati per categoria slot.

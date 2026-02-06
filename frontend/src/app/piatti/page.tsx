@@ -16,7 +16,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FaPlus, FaEdit, FaTrash, FaSearch, FaTimes } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
-import { dishesApi } from '@/lib/api';
+import { dishesApi, mealsApi } from '@/lib/api';
 import { Dish, DishCategory } from '@/types';
 import StatusModal from '@/components/StatusModal';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -41,6 +41,7 @@ export default function PiattiPage() {
   const [newIngredient, setNewIngredient] = useState('');
   const [error, setError] = useState('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [autoStatus, setAutoStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -48,6 +49,8 @@ export default function PiattiPage() {
   const [selectedCsvFile, setSelectedCsvFile] = useState<File | null>(null);
   const [exportUrl, setExportUrl] = useState<string | null>(null);
   const [exportFilename, setExportFilename] = useState<string | null>(null);
+  const [showAutoModal, setShowAutoModal] = useState(false);
+  const [autoRange, setAutoRange] = useState('this_week');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
@@ -103,6 +106,29 @@ export default function PiattiPage() {
       setError(err.message);
     },
   });
+
+  const autoScheduleMutation = useMutation({
+    mutationFn: mealsApi.autoSchedule,
+    onSuccess: (data) => {
+      setAutoStatus(`Auto-programmazione completata: ${data.created} pasti inseriti.`);
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
+  const autoRanges = [
+    { value: 'this_week', label: 'Questa settimana (lun-dom)' },
+    { value: 'last_week', label: 'Settimana scorsa (lun-dom)' },
+    { value: 'next_week', label: 'Settimana prossima (lun-dom)' },
+    { value: 'this_month', label: 'Questo mese' },
+    { value: 'last_month', label: 'Mese scorso' },
+    { value: 'next_month', label: 'Mese prossimo' },
+    { value: 'last_7_days', label: 'Ultimi 7 giorni' },
+    { value: 'next_7_days', label: 'Prossimi 7 giorni' },
+    { value: 'workweek', label: 'Settimana lavorativa (lun-ven)' },
+  ];
 
   const handleOpenModal = (dish?: Dish) => {
     if (dish) {
@@ -314,6 +340,13 @@ export default function PiattiPage() {
           >
             {importing ? <Spinner size="sm" animation="border" /> : 'Importa CSV'}
           </Button>
+          <Button
+            variant="primary"
+            className="btn-primary-soft"
+            onClick={() => setShowAutoModal(true)}
+          >
+            Auto-programma
+          </Button>
           <Button variant="primary" className="btn-danger-soft" onClick={handleDeleteAll} disabled={deleteAllMutation.isPending}>
             {deleteAllMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Cancella Tutti'}
           </Button>
@@ -359,6 +392,13 @@ export default function PiattiPage() {
         variant="success"
         message={importStatus || ''}
         onClose={() => setImportStatus(null)}
+      />
+
+      <StatusModal
+        show={Boolean(autoStatus)}
+        variant="success"
+        message={autoStatus || ''}
+        onClose={() => setAutoStatus(null)}
       />
 
       <StatusModal
@@ -616,6 +656,52 @@ export default function PiattiPage() {
             <span>Nessun file disponibile.</span>
           )}
         </Modal.Body>
+      </Modal>
+
+      <Modal
+        show={showAutoModal}
+        onHide={() => setShowAutoModal(false)}
+        centered
+        dialogClassName="app-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Auto-programmazione</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="small text-muted mb-3">
+            Seleziona un intervallo: verranno riempiti solo gli slot vuoti con alternanza automatica.
+          </p>
+          <Form>
+            {autoRanges.map((range) => (
+              <Form.Check
+                key={range.value}
+                type="radio"
+                id={`auto-${range.value}`}
+                name="autoRange"
+                label={range.label}
+                value={range.value}
+                checked={autoRange === range.value}
+                onChange={(e) => setAutoRange(e.target.value)}
+                className="mb-2"
+              />
+            ))}
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowAutoModal(false)}>
+            Annulla
+          </Button>
+          <Button
+            variant="primary"
+            disabled={autoScheduleMutation.isPending}
+            onClick={() => {
+              autoScheduleMutation.mutate({ rangeType: autoRange });
+              setShowAutoModal(false);
+            }}
+          >
+            {autoScheduleMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Programma'}
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       <ConfirmModal

@@ -1,17 +1,16 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
-import { Row, Col, Card, Button, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
+import { Row, Col, Card, Button, Badge, ListGroup, Spinner, Form } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, differenceInCalendarDays } from 'date-fns';
 import { it } from 'date-fns/locale';
 import Link from 'next/link';
-import { FaPlus, FaLightbulb, FaCalendarAlt, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaLightbulb, FaCalendarAlt } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, suggestionsApi, dishesApi, familyApi, weatherApi } from '@/lib/api';
-import { MealPlan, MealType, Suggestion } from '@/types';
+import { DishCategory, MealPlan, MealType } from '@/types';
 import StatusModal from '@/components/StatusModal';
-import ConfirmModal from '@/components/ConfirmModal';
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
@@ -36,27 +35,44 @@ export default function DashboardPage() {
   const rangeEnd = format(addDays(weekStart, 6), 'yyyy-MM-dd');
   const touchStart = useRef<number | null>(null);
 
-  const [showModal, setShowModal] = useState(false);
-  const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
-  const [selectedMealType, setSelectedMealType] = useState<MealType>('pranzo');
-  const [selectedDishId, setSelectedDishId] = useState('');
   const [error, setError] = useState('');
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { data: meals, isLoading: mealsLoading } = useQuery({
     queryKey: ['meals', 'range', rangeStart, rangeEnd],
     queryFn: () => mealsApi.getRange(rangeStart, rangeEnd),
   });
 
-  const { data: lunchSuggestions } = useQuery({
-    queryKey: ['suggestions', format(today, 'yyyy-MM-dd'), 'pranzo'],
-    queryFn: () => suggestionsApi.get(format(today, 'yyyy-MM-dd'), 'pranzo'),
-  });
-
-  const { data: dinnerSuggestions } = useQuery({
-    queryKey: ['suggestions', format(today, 'yyyy-MM-dd'), 'cena'],
-    queryFn: () => suggestionsApi.get(format(today, 'yyyy-MM-dd'), 'cena'),
-  });
+  const suggestionDate = format(today, 'yyyy-MM-dd');
+  const suggestionQueries = {
+    pranzo: {
+      primo: useQuery({
+        queryKey: ['suggestions', suggestionDate, 'pranzo', 'primo'],
+        queryFn: () => suggestionsApi.get(suggestionDate, 'pranzo', 'primo'),
+      }),
+      secondo: useQuery({
+        queryKey: ['suggestions', suggestionDate, 'pranzo', 'secondo'],
+        queryFn: () => suggestionsApi.get(suggestionDate, 'pranzo', 'secondo'),
+      }),
+      contorno: useQuery({
+        queryKey: ['suggestions', suggestionDate, 'pranzo', 'contorno'],
+        queryFn: () => suggestionsApi.get(suggestionDate, 'pranzo', 'contorno'),
+      }),
+    },
+    cena: {
+      primo: useQuery({
+        queryKey: ['suggestions', suggestionDate, 'cena', 'primo'],
+        queryFn: () => suggestionsApi.get(suggestionDate, 'cena', 'primo'),
+      }),
+      secondo: useQuery({
+        queryKey: ['suggestions', suggestionDate, 'cena', 'secondo'],
+        queryFn: () => suggestionsApi.get(suggestionDate, 'cena', 'secondo'),
+      }),
+      contorno: useQuery({
+        queryKey: ['suggestions', suggestionDate, 'cena', 'contorno'],
+        queryFn: () => suggestionsApi.get(suggestionDate, 'cena', 'contorno'),
+      }),
+    },
+  };
 
   const days = useMemo(
     () =>
@@ -80,6 +96,16 @@ export default function DashboardPage() {
     );
   };
 
+  const getMealBySlot = (dayOffset: number, mealType: MealType, slotCategory: DishCategory) => {
+    const day = addDays(weekStart, dayOffset);
+    return meals?.find(
+      (meal) =>
+        format(new Date(meal.date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd') &&
+        meal.mealType === mealType &&
+        meal.slotCategory === slotCategory
+    );
+  };
+
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
       case 'primo':
@@ -93,36 +119,20 @@ export default function DashboardPage() {
     }
   };
 
-  const pickEmoji = (meal: MealPlan) => {
-    switch (meal.dish.category) {
-      case 'primo':
-        return '🍝';
-      case 'secondo':
-        return '🥩';
-      case 'contorno':
-        return '🥗';
-      default:
-        return '🍽️';
-    }
-  };
-
-  const selectedDay = days[selectedDayIndex] ?? days[0];
-  const lunchMeal = getMealsByDayAndType(selectedDayIndex, 'pranzo')?.[0];
-  const dinnerMeal = getMealsByDayAndType(selectedDayIndex, 'cena')?.[0];
+  const slotCategories: DishCategory[] = ['primo', 'secondo', 'contorno'];
 
   const { data: dishes } = useQuery({
     queryKey: ['dishes'],
     queryFn: () => dishesApi.list(),
   });
 
-  const { data: suggestions, isLoading: suggestionsLoading } = useQuery({
-    queryKey: ['suggestions', selectedDateStr || '', selectedMealType],
-    queryFn: () =>
-      selectedDateStr
-        ? suggestionsApi.get(selectedDateStr, selectedMealType)
-        : Promise.resolve([]),
-    enabled: !!selectedDateStr,
-  });
+  const dishesByCategory = useMemo(() => {
+    return {
+      primo: dishes?.filter((dish) => dish.category === 'primo') ?? [],
+      secondo: dishes?.filter((dish) => dish.category === 'secondo') ?? [],
+      contorno: dishes?.filter((dish) => dish.category === 'contorno') ?? [],
+    };
+  }, [dishes]);
 
   const createMutation = useMutation({
     mutationFn: mealsApi.create,
@@ -142,7 +152,18 @@ export default function DashboardPage() {
 
       queryClient.invalidateQueries({ queryKey: ['meals'] });
       queryClient.invalidateQueries({ queryKey: ['suggestions'] });
-      handleCloseModal();
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof mealsApi.update>[1] }) =>
+      mealsApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+      queryClient.invalidateQueries({ queryKey: ['suggestions'] });
     },
     onError: (err: Error) => {
       setError(err.message);
@@ -156,49 +177,34 @@ export default function DashboardPage() {
     },
   });
 
-  const handleOpenModal = (mealType: MealType) => {
+  const handleSlotChange = (
+    mealType: MealType,
+    slotCategory: DishCategory,
+    dishId: string
+  ) => {
     const dateStr = format(addDays(weekStart, selectedDayIndex), 'yyyy-MM-dd');
-    setSelectedDateStr(dateStr);
-    setSelectedMealType(mealType);
-    setSelectedDishId('');
-    setError('');
-    setShowModal(true);
-  };
+    const existing = getMealBySlot(selectedDayIndex, mealType, slotCategory);
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setSelectedDateStr(null);
-    setSelectedDishId('');
-    setError('');
-  };
+    if (!dishId) {
+      if (existing) {
+        deleteMealMutation.mutate(existing.id);
+      }
+      return;
+    }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDateStr || !selectedDishId) {
-      setError('Seleziona un piatto');
+    if (existing) {
+      if (existing.dishId !== dishId) {
+        updateMutation.mutate({ id: existing.id, data: { dishId } });
+      }
       return;
     }
 
     createMutation.mutate({
-      date: selectedDateStr,
-      mealType: selectedMealType,
-      dishId: selectedDishId,
+      date: dateStr,
+      mealType,
+      slotCategory,
+      dishId,
     });
-  };
-
-  const handleAcceptSuggestion = (suggestion: Suggestion) => {
-    if (!selectedDateStr) return;
-
-    createMutation.mutate({
-      date: selectedDateStr,
-      mealType: selectedMealType,
-      dishId: suggestion.dish.id,
-      isSuggestion: true,
-    });
-  };
-
-  const handleRemoveMeal = (mealId: string) => {
-    setPendingDeleteId(mealId);
   };
 
   const handlePrevWeek = () => {
@@ -308,95 +314,43 @@ export default function DashboardPage() {
         <Row className="g-4">
           <Col lg={8}>
             <div className="meal-section">
-              {lunchMeal ? (
-                <Card className="meal-bubble-card meal-bubble-lunch mb-3">
+              {(['pranzo', 'cena'] as MealType[]).map((mealType) => (
+                <Card
+                  key={mealType}
+                  className={`meal-bubble-card ${mealType === 'pranzo' ? 'meal-bubble-lunch' : 'meal-bubble-dinner'} mb-3`}
+                >
                   <Card.Body>
                     <div className="meal-bubble-header">
                       <div className="d-flex align-items-center gap-2">
-                        <span className="meal-bubble-label">☀️ Pranzo</span>
-                        <Badge className={getCategoryBadgeClass(lunchMeal.dish.category)}>
-                          {lunchMeal.dish.category}
-                        </Badge>
-                      </div>
-                      <button
-                        type="button"
-                        className="meal-bubble-delete"
-                        onClick={() => handleRemoveMeal(lunchMeal.id)}
-                        aria-label="Rimuovi pranzo"
-                      >
-                        <FaTimes />
-                      </button>
-                    </div>
-                    <div className="meal-bubble-main">
-                      <div className="meal-bubble-emoji">{pickEmoji(lunchMeal)}</div>
-                      <div>
-                        <h3 className="meal-bubble-title">{lunchMeal.dish.name}</h3>
+                        <span className="meal-bubble-label">
+                          {mealType === 'pranzo' ? '☀️ Pranzo' : '🌙 Cena'}
+                        </span>
                       </div>
                     </div>
-                    {lunchMeal.dish.ingredients.length > 0 && (
-                      <div className="meal-bubble-ingredients">
-                        {lunchMeal.dish.ingredients.map((ing) => (
-                          <span key={ing} className="ingredient-tag">
-                            {ing}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </Card.Body>
-                </Card>
-              ) : (
-                <Card className="meal-add-card mb-3" onClick={() => handleOpenModal('pranzo')}>
-                  <Card.Body>
-                    <div className="meal-add-icon">＋</div>
-                    <span>Aggiungi Pranzo</span>
-                  </Card.Body>
-                </Card>
-              )}
-
-              {dinnerMeal ? (
-                <Card className="meal-bubble-card meal-bubble-dinner">
-                  <Card.Body>
-                    <div className="meal-bubble-header">
-                      <div className="d-flex align-items-center gap-2">
-                        <span className="meal-bubble-label">🌙 Cena</span>
-                        <Badge className={getCategoryBadgeClass(dinnerMeal.dish.category)}>
-                          {dinnerMeal.dish.category}
-                        </Badge>
-                      </div>
-                      <button
-                        type="button"
-                        className="meal-bubble-delete"
-                        onClick={() => handleRemoveMeal(dinnerMeal.id)}
-                        aria-label="Rimuovi cena"
-                      >
-                        <FaTimes />
-                      </button>
+                    <div className="d-flex flex-column gap-3">
+                      {slotCategories.map((slot) => {
+                        const meal = getMealBySlot(selectedDayIndex, mealType, slot);
+                        return (
+                          <div key={`${mealType}-${slot}`} className="d-flex align-items-center gap-3">
+                            <Badge className={getCategoryBadgeClass(slot)}>{slot}</Badge>
+                            <Form.Select
+                              value={meal?.dishId || ''}
+                              onChange={(e) => handleSlotChange(mealType, slot, e.target.value)}
+                            >
+                              <option value="">Seleziona {slot}...</option>
+                              {dishesByCategory[slot].map((dish) => (
+                                <option key={dish.id} value={dish.id}>
+                                  {dish.name}
+                                </option>
+                              ))}
+                            </Form.Select>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="meal-bubble-main">
-                      <div className="meal-bubble-emoji">{pickEmoji(dinnerMeal)}</div>
-                      <div>
-                        <h3 className="meal-bubble-title">{dinnerMeal.dish.name}</h3>
-                      </div>
-                    </div>
-                    {dinnerMeal.dish.ingredients.length > 0 && (
-                      <div className="meal-bubble-ingredients">
-                        {dinnerMeal.dish.ingredients.map((ing) => (
-                          <span key={ing} className="ingredient-tag">
-                            {ing}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </Card.Body>
                 </Card>
-              ) : (
-                <Card className="meal-add-card" onClick={() => handleOpenModal('cena')}>
-                  <Card.Body>
-                    <div className="meal-add-icon">＋</div>
-                    <span>Aggiungi Cena</span>
-                  </Card.Body>
-                </Card>
-              )}
+              ))}
             </div>
           </Col>
 
@@ -406,49 +360,29 @@ export default function DashboardPage() {
                 <FaLightbulb /> Suggerimenti per Oggi
               </Card.Header>
               <Card.Body>
-                <h6 className="text-muted">Pranzo</h6>
-                <ListGroup variant="flush" className="mb-3">
-                  {lunchSuggestions?.slice(0, 3).map((suggestion) => (
-                    <ListGroup.Item
-                      key={suggestion.dish.id}
-                      className="d-flex justify-content-between align-items-center px-0"
-                    >
-                      <div>
-                        <Badge className={`${getCategoryBadgeClass(suggestion.dish.category)} me-2`}>
-                          {suggestion.dish.category}
-                        </Badge>
-                        {suggestion.dish.name}
-                      </div>
-                    </ListGroup.Item>
-                  ))}
-                  {(!lunchSuggestions || lunchSuggestions.length === 0) && (
-                    <ListGroup.Item className="px-0 text-muted small">
-                      Aggiungi piatti per ricevere suggerimenti
-                    </ListGroup.Item>
-                  )}
-                </ListGroup>
-
-                <h6 className="text-muted">Cena</h6>
-                <ListGroup variant="flush">
-                  {dinnerSuggestions?.slice(0, 3).map((suggestion) => (
-                    <ListGroup.Item
-                      key={suggestion.dish.id}
-                      className="d-flex justify-content-between align-items-center px-0"
-                    >
-                      <div>
-                        <Badge className={`${getCategoryBadgeClass(suggestion.dish.category)} me-2`}>
-                          {suggestion.dish.category}
-                        </Badge>
-                        {suggestion.dish.name}
-                      </div>
-                    </ListGroup.Item>
-                  ))}
-                  {(!dinnerSuggestions || dinnerSuggestions.length === 0) && (
-                    <ListGroup.Item className="px-0 text-muted small">
-                      Aggiungi piatti per ricevere suggerimenti
-                    </ListGroup.Item>
-                  )}
-                </ListGroup>
+                {(['pranzo', 'cena'] as MealType[]).map((mealType) => (
+                  <div key={mealType} className="mb-3">
+                    <h6 className="text-muted">{mealType === 'pranzo' ? 'Pranzo' : 'Cena'}</h6>
+                    <ListGroup variant="flush">
+                      {slotCategories.map((slot) => {
+                        const data = suggestionQueries[mealType][slot].data;
+                        return (
+                          <ListGroup.Item
+                            key={`${mealType}-${slot}`}
+                            className="d-flex justify-content-between align-items-center px-0"
+                          >
+                            <div>
+                              <Badge className={`${getCategoryBadgeClass(slot)} me-2`}>
+                                {slot}
+                              </Badge>
+                              {data && data.length > 0 ? data[0].dish.name : '—'}
+                            </div>
+                          </ListGroup.Item>
+                        );
+                      })}
+                    </ListGroup>
+                  </div>
+                ))}
               </Card.Body>
             </Card>
 
@@ -471,128 +405,11 @@ export default function DashboardPage() {
         </Row>
       )}
 
-      <Modal show={showModal} onHide={handleCloseModal} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {selectedDateStr && format(new Date(`${selectedDateStr}T00:00:00`), 'EEEE d MMMM yyyy', { locale: it })}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Row>
-            <Col md={6}>
-              <div className="mb-3">
-                <div className="btn-group w-100" role="group">
-                  <Button
-                    variant={selectedMealType === 'pranzo' ? 'warning' : 'outline-warning'}
-                    onClick={() => setSelectedMealType('pranzo')}
-                  >
-                    🌞 Pranzo
-                  </Button>
-                  <Button
-                    variant={selectedMealType === 'cena' ? 'primary' : 'outline-primary'}
-                    onClick={() => setSelectedMealType('cena')}
-                    style={{
-                      backgroundColor: selectedMealType === 'cena' ? '#9b59b6' : 'transparent',
-                      borderColor: '#9b59b6',
-                      color: selectedMealType === 'cena' ? 'white' : '#9b59b6',
-                    }}
-                  >
-                    🌙 Cena
-                  </Button>
-                </div>
-              </div>
-
-              <h6 className="mb-2">Aggiungi piatto</h6>
-              <StatusModal
-                show={Boolean(error)}
-                variant="danger"
-                message={error}
-                onClose={() => setError('')}
-              />
-              <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3">
-                  <Form.Select
-                    value={selectedDishId}
-                    onChange={(e) => setSelectedDishId(e.target.value)}
-                  >
-                    <option value="">Seleziona un piatto...</option>
-                    {dishes?.map((dish) => (
-                      <option key={dish.id} value={dish.id}>
-                        [{dish.category}] {dish.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={!selectedDishId || createMutation.isPending}
-                >
-                  {createMutation.isPending ? (
-                    <Spinner size="sm" animation="border" />
-                  ) : (
-                    <>
-                      <FaPlus className="me-1" /> Aggiungi
-                    </>
-                  )}
-                </Button>
-              </Form>
-            </Col>
-
-            <Col md={6}>
-              <div className="d-flex align-items-center gap-2 mb-3">
-                <FaLightbulb className="text-warning" />
-                <h6 className="mb-0">Suggerimenti</h6>
-              </div>
-
-              {suggestionsLoading ? (
-                <div className="text-center py-3">
-                  <Spinner size="sm" animation="border" variant="success" />
-                </div>
-              ) : suggestions && suggestions.length > 0 ? (
-                <ListGroup>
-                  {suggestions.map((suggestion) => (
-                    <ListGroup.Item
-                      key={suggestion.dish.id}
-                      action
-                      onClick={() => handleAcceptSuggestion(suggestion)}
-                      className="suggestion-card"
-                    >
-                      <div className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <Badge
-                            className={`${getCategoryBadgeClass(suggestion.dish.category)} me-2`}
-                          >
-                            {suggestion.dish.category}
-                          </Badge>
-                          {suggestion.dish.name}
-                        </div>
-                        <FaPlus className="text-success" />
-                      </div>
-                      <small className="text-muted">{suggestion.reason}</small>
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
-              ) : (
-                <p className="text-muted small">
-                  Aggiungi piatti alla tua lista per ricevere suggerimenti
-                </p>
-              )}
-            </Col>
-          </Row>
-        </Modal.Body>
-      </Modal>
-
-      <ConfirmModal
-        show={Boolean(pendingDeleteId)}
-        message="Rimuovere questo pasto dalla giornata?"
-        onCancel={() => setPendingDeleteId(null)}
-        onConfirm={() => {
-          if (pendingDeleteId) {
-            deleteMealMutation.mutate(pendingDeleteId);
-          }
-          setPendingDeleteId(null);
-        }}
+      <StatusModal
+        show={Boolean(error)}
+        variant="danger"
+        message={error}
+        onClose={() => setError('')}
       />
     </DashboardLayout>
   );

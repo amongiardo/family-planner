@@ -112,12 +112,12 @@ export const mealsApi = {
   getRange: (start: string, end: string) =>
     fetchApi<MealPlan[]>(`/api/meals/range?start=${start}&end=${end}`),
   getDate: (date: string) => fetchApi<MealPlan[]>(`/api/meals/date/${date}`),
-  create: (data: { date: string; mealType: string; dishId: string; isSuggestion?: boolean }) =>
+  create: (data: { date: string; mealType: string; slotCategory: string; dishId: string; isSuggestion?: boolean }) =>
     fetchApi<MealPlan>('/api/meals', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  update: (id: string, data: Partial<{ date: string; mealType: string; dishId: string }>) =>
+  update: (id: string, data: Partial<{ date: string; mealType: string; slotCategory: string; dishId: string }>) =>
     fetchApi<MealPlan>(`/api/meals/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -125,13 +125,18 @@ export const mealsApi = {
   delete: (id: string) => fetchApi<{ success: boolean }>(`/api/meals/${id}`, {
     method: 'DELETE',
   }),
+  autoSchedule: (data: { rangeType: string }) =>
+    fetchApi<{ success: boolean; created: number }>('/api/meals/auto-schedule', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // Suggestions
 export const suggestionsApi = {
-  get: (date: string, meal: string) =>
-    fetchApi<Suggestion[]>(`/api/suggestions?date=${date}&meal=${meal}`),
-  accept: (data: { date: string; mealType: string; dishId: string }) =>
+  get: (date: string, meal: string, category: string) =>
+    fetchApi<Suggestion[]>(`/api/suggestions?date=${date}&meal=${meal}&category=${category}`),
+  accept: (data: { date: string; mealType: string; slotCategory: string; dishId: string }) =>
     fetchApi<MealPlan>('/api/suggestions/accept', {
       method: 'POST',
       body: JSON.stringify(data),
