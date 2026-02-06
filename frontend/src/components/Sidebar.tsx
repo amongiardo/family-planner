@@ -9,7 +9,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: FaHome },
   { href: '/calendario', label: 'Calendario', icon: FaCalendarAlt },
   { href: '/piatti', label: 'Piatti', icon: FaUtensils },
-  { href: '/menu', label: 'Statistiche', icon: FaChartBar },
+  { href: '/statistiche', label: 'Statistiche', icon: FaChartBar },
   { href: '/spesa', label: 'Lista Spesa', icon: FaShoppingCart },
   { href: '/impostazioni', label: 'Impostazioni', icon: FaCog },
 ];

@@ -76,3 +76,4 @@ Changelog
 - 2026-02-06: Navbar: dropdown utente su una riga con ellipsis per nomi lunghi.
 - 2026-02-06: /piatti: import/export CSV in modale; export con pulsante download e stile modal aggiornato.
 - 2026-02-06: Aggiunta pagina Statistiche (week/month) con piatti più frequenti e non mangiati.
+- 2026-02-06: Route Statistiche spostata da /menu a /statistiche.
