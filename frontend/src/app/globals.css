@@ -700,6 +700,18 @@ body::after {
   color: #fff !important;
 }
 
+.app-navbar .user-dropdown-title {
+  white-space: nowrap;
+}
+
+.app-navbar .user-dropdown-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
 .app-navbar .dropdown-menu {
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(0, 0, 0, 0.08);

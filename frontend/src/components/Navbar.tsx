@@ -24,7 +24,7 @@ export default function Navbar() {
             {user && (
               <NavDropdown
                 title={
-                  <span className="d-flex align-items-center gap-2">
+                  <span className="d-inline-flex align-items-center gap-2 user-dropdown-title">
                     {user.avatarUrl ? (
                       <Image
                         src={user.avatarUrl}
@@ -41,7 +41,7 @@ export default function Navbar() {
                         {user.name.charAt(0).toUpperCase()}
                       </div>
                     )}
-                    {user.name}
+                    <span className="user-dropdown-name">{user.name}</span>
                   </span>
                 }
                 id="user-dropdown"
