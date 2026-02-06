@@ -37,7 +37,7 @@ family-meal-planner/
 ## Prerequisiti
 
 - Node.js 18+
-- PostgreSQL 14+
+- PostgreSQL 16 (consigliato) o 14+
 - Account Google Cloud Console (per OAuth)
 - Account GitHub Developer (per OAuth)
 

@@ -3,7 +3,7 @@ FAMILY MEAL PLANNER - INSTALLAZIONE E AVVIO
 PRIMA INSTALLAZIONE
 1) Prerequisiti
    - Node.js 18+
-   - PostgreSQL 14+
+   - PostgreSQL 16 (consigliato) o 14+
 
 2) Database
    - Crea il DB:
