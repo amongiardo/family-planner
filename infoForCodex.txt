@@ -75,3 +75,4 @@ Changelog
 - 2026-02-06: Pagina /piatti: pulsanti CSV con stile soft; “Cancella Tutti” versione soft rossa.
 - 2026-02-06: Navbar: dropdown utente su una riga con ellipsis per nomi lunghi.
 - 2026-02-06: /piatti: import/export CSV in modale; export con pulsante download e stile modal aggiornato.
+- 2026-02-06: Aggiunta pagina Statistiche (week/month) con piatti più frequenti e non mangiati.

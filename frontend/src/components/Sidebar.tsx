@@ -3,12 +3,13 @@
 import { Nav } from 'react-bootstrap';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FaHome, FaUtensils, FaCalendarAlt, FaShoppingCart, FaCog } from 'react-icons/fa';
+import { FaHome, FaUtensils, FaCalendarAlt, FaShoppingCart, FaCog, FaChartBar } from 'react-icons/fa';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: FaHome },
   { href: '/calendario', label: 'Calendario', icon: FaCalendarAlt },
   { href: '/piatti', label: 'Piatti', icon: FaUtensils },
+  { href: '/menu', label: 'Statistiche', icon: FaChartBar },
   { href: '/spesa', label: 'Lista Spesa', icon: FaShoppingCart },
   { href: '/impostazioni', label: 'Impostazioni', icon: FaCog },
 ];

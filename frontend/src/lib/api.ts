@@ -64,6 +64,18 @@ export const weatherApi = {
     ),
 };
 
+// Stats
+export const statsApi = {
+  meals: (range: 'week' | 'month') =>
+    fetchApi<{
+      range: 'week' | 'month';
+      start: string;
+      end: string;
+      frequent: { dishId: string; name: string; category: string; count: number }[];
+      notEaten: { dishId: string; name: string; category: string }[];
+    }>(`/api/stats/meals?range=${range}`),
+};
+
 // Dishes
 export const dishesApi = {
   list: (params?: { category?: string; search?: string }) => {
