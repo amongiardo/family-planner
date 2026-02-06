@@ -727,6 +727,18 @@ body::after {
   color: #2f2a3a;
 }
 
+.export-download-wrap a {
+  text-decoration: underline;
+}
+
+.export-download-wrap a:hover {
+  text-decoration: underline;
+}
+
+.export-download-wrap {
+  color: inherit;
+}
+
 .content-area {
   padding-bottom: 40px;
 }
@@ -740,10 +752,80 @@ body::after {
   --bs-table-color: #3a3646;
 }
 
-.modal-content {
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 24px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+.modal-backdrop.show {
+  opacity: 0.25;
+}
+
+.app-modal .modal-content {
+  position: relative;
+  background: linear-gradient(180deg, rgba(84, 54, 120, 0.92), rgba(86, 44, 110, 0.88));
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 24px 60px rgba(29, 17, 50, 0.45);
+  color: #f8f1ff;
+}
+
+.app-modal .modal-content::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 20px;
+  background: rgba(39, 24, 62, 0.55);
+  z-index: 0;
+}
+
+.app-modal .modal-content > * {
+  position: relative;
+  z-index: 1;
+}
+
+.app-modal .modal-header,
+.app-modal .modal-footer {
+  border: none;
+}
+
+.app-modal .modal-title {
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+.app-modal .btn-close {
+  filter: invert(1);
+}
+
+.modal-close-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: #6d2f86;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.export-modal-header {
+  position: relative;
+  padding-right: 56px;
+}
+
+.export-modal-header .modal-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.export-download-button {
+  padding: 10px 28px;
+  min-width: 160px;
+  width: auto;
 }
 
 .form-control,

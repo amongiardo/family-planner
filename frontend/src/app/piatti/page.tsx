@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
   Row,
   Col,
@@ -33,7 +33,6 @@ export default function PiattiPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
   const [editingDish, setEditingDish] = useState<Dish | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     category: 'primo' as DishCategory,
@@ -44,6 +43,11 @@ export default function PiattiPage() {
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedCsvFile, setSelectedCsvFile] = useState<File | null>(null);
+  const [exportUrl, setExportUrl] = useState<string | null>(null);
+  const [exportFilename, setExportFilename] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
@@ -262,9 +266,7 @@ export default function PiattiPage() {
       setError(err?.message || 'Errore durante l’import CSV');
     } finally {
       setImporting(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      setSelectedCsvFile(null);
     }
   };
 
@@ -274,16 +276,13 @@ export default function PiattiPage() {
     setExporting(true);
     try {
       const { csv } = await dishesApi.exportCsv();
+      const now = new Date();
+      const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+      const filename = `familyPlanner_piatti_${stamp}.csv`;
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'dishes_export.csv';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      setImportStatus('Export completato: file scaricato.');
+      setExportUrl(url);
+      setExportFilename(filename);
     } catch (err: any) {
       setError(err?.message || 'Errore durante l’export CSV');
     } finally {
@@ -296,10 +295,23 @@ export default function PiattiPage() {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="page-title">Gestione Piatti</h2>
         <div className="d-flex gap-2 flex-wrap">
-          <Button variant="primary" className="btn-primary-soft" onClick={handleExportCsv} disabled={exporting}>
+          <Button
+            variant="primary"
+            className="btn-primary-soft"
+            onClick={() => {
+              setShowExportModal(true);
+              handleExportCsv();
+            }}
+            disabled={exporting}
+          >
             {exporting ? <Spinner size="sm" animation="border" /> : 'Esporta CSV'}
           </Button>
-          <Button variant="primary" className="btn-primary-soft" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+          <Button
+            variant="primary"
+            className="btn-primary-soft"
+            onClick={() => setShowImportModal(true)}
+            disabled={importing}
+          >
             {importing ? <Spinner size="sm" animation="border" /> : 'Importa CSV'}
           </Button>
           <Button variant="primary" className="btn-danger-soft" onClick={handleDeleteAll} disabled={deleteAllMutation.isPending}>
@@ -311,22 +323,6 @@ export default function PiattiPage() {
         </div>
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".csv"
-        className="d-none"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) {
-            handleImportCsv(file);
-          }
-        }}
-      />
-      <p className="small text-muted mb-4">
-        Formato CSV: <strong>name,category,ingredients</strong> — ingredienti separati da “;”
-        (categorie: primo, secondo, contorno).
-      </p>
 
       <Card className="mb-4">
         <Card.Body>
@@ -526,6 +522,100 @@ export default function PiattiPage() {
             </Button>
           </Modal.Footer>
         </Form>
+      </Modal>
+
+      <Modal
+        show={showImportModal}
+        onHide={() => {
+          setShowImportModal(false);
+          setSelectedCsvFile(null);
+        }}
+        centered
+        dialogClassName="app-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Importa CSV</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="small text-muted mb-3">
+            Formato CSV: <strong>name,category,ingredients</strong> — ingredienti separati da “;”
+            (categorie: primo, secondo, contorno).
+          </p>
+          <Form.Control
+            type="file"
+            accept=".csv"
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null;
+              setSelectedCsvFile(file);
+            }}
+          />
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowImportModal(false)}>
+            Annulla
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!selectedCsvFile || importing}
+            onClick={() => {
+              if (selectedCsvFile) {
+                handleImportCsv(selectedCsvFile);
+                setShowImportModal(false);
+              }
+            }}
+          >
+            {importing ? <Spinner size="sm" animation="border" /> : 'Carica'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showExportModal}
+        onHide={() => {
+          setShowExportModal(false);
+          if (exportUrl) {
+            URL.revokeObjectURL(exportUrl);
+            setExportUrl(null);
+          }
+          setExportFilename(null);
+        }}
+        centered
+        dialogClassName="app-modal"
+      >
+        <Modal.Header className="border-0 export-modal-header">
+          <Modal.Title>Esporta CSV</Modal.Title>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={() => setShowExportModal(false)}
+            aria-label="Chiudi"
+          >
+            <FaTimes />
+          </button>
+        </Modal.Header>
+        <Modal.Body>
+          {exporting && (
+            <div className="d-flex align-items-center gap-2">
+              <Spinner size="sm" animation="border" />
+              <span>Generazione file in corso...</span>
+            </div>
+          )}
+          {!exporting && exportUrl && (
+            <div className="d-flex flex-column align-items-center gap-2">
+              <Button
+                variant="primary"
+                className="btn-primary-soft export-download-button"
+                href={exportUrl}
+                download={exportFilename || 'familyPlanner_piatti.csv'}
+              >
+                Download
+              </Button>
+            </div>
+          )}
+          {!exporting && !exportUrl && (
+            <span>Nessun file disponibile.</span>
+          )}
+        </Modal.Body>
       </Modal>
 
       <ConfirmModal
