@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import passport from 'passport';
-import { isAuthenticated } from '../middleware/auth';
 import prisma from '../prisma';
 
 const router = Router();
@@ -137,8 +136,11 @@ router.post('/local/login', async (req, res, next) => {
   }
 });
 
-// Get current user
-router.get('/me', isAuthenticated, (req, res) => {
+// Get current user (returns null when not authenticated)
+router.get('/me', (req, res) => {
+  if (!req.user) {
+    return res.json({ user: null });
+  }
   res.json({
     user: sanitizeUser(req.user),
   });

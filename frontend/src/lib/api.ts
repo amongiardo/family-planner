@@ -22,7 +22,7 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
 
 // Auth
 export const authApi = {
-  getMe: () => fetchApi<{ user: User }>('/auth/me'),
+  getMe: () => fetchApi<{ user: User | null }>('/auth/me'),
   logout: () => fetchApi<{ success: boolean }>('/auth/logout', { method: 'POST' }),
   getGoogleLoginUrl: () => `${API_URL}/auth/google`,
   getGithubLoginUrl: () => `${API_URL}/auth/github`,

@@ -12,7 +12,16 @@ stop_pid() {
     pid="$(cat "$pid_file")"
     if kill -0 "$pid" 2>/dev/null; then
       echo "Stopping $name (pid $pid)..."
-      kill "$pid"
+      # Kill child processes first (npm spawns node)
+      if command -v pgrep >/dev/null 2>&1; then
+        pgrep -P "$pid" | xargs -r kill 2>/dev/null || true
+      fi
+      kill "$pid" 2>/dev/null || true
+      # Give it a moment, then force if still alive
+      sleep 1
+      if kill -0 "$pid" 2>/dev/null; then
+        kill -9 "$pid" 2>/dev/null || true
+      fi
     fi
     rm -f "$pid_file"
   fi
@@ -20,6 +29,17 @@ stop_pid() {
 
 stop_pid "frontend"
 stop_pid "backend"
+
+# Clean up any lingering node processes on dev ports (fallback)
+for port in 3000 3001 3002 3003; do
+  if command -v lsof >/dev/null 2>&1; then
+    pids="$(lsof -tiTCP:${port} -sTCP:LISTEN -c node 2>/dev/null || true)"
+    if [[ -n "$pids" ]]; then
+      echo "Killing node processes on port $port: $pids"
+      kill $pids 2>/dev/null || true
+    fi
+  fi
+done
 
 PG_BIN="/Library/PostgreSQL/16/bin"
 PG_CTL="${PG_BIN}/pg_ctl"

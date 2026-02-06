@@ -70,3 +70,5 @@ Changelog
 - 2026-02-04: .env.example aggiornato con nota su PostgreSQL 16.
 - 2026-02-04: Aggiunti script dev_start/dev_stop e documentazione in install.txt/README.
 - 2026-02-06: Rimosso PostgreSQL 18 dal Mac di sviluppo; standardizzato su PostgreSQL 16 (porta 5432).
+- 2026-02-06: /auth/me ora ritorna 200 con user null quando non autenticato (evita 401 in console).
+- 2026-02-06: dev_stop.sh ora termina anche i processi node rimasti sulle porte 3000-3003.
