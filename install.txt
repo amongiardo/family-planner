@@ -35,6 +35,13 @@ AVVIO SUCCESSIVO
    - cd frontend
    - npm run dev
 
+OPZIONE RAPIDA (script)
+1) Avvio completo (Postgres + backend + frontend)
+   - ./scripts/dev_start.sh
+
+2) Stop completo
+   - ./scripts/dev_stop.sh
+
 NOTE
 - L'API gira su http://localhost:3001
 - Il frontend gira su http://localhost:3000

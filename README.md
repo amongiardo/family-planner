@@ -89,6 +89,18 @@ npm install
 npm run dev
 ```
 
+## Avvio rapido (script)
+
+```bash
+./scripts/dev_start.sh
+```
+
+Per fermare tutto:
+
+```bash
+./scripts/dev_stop.sh
+```
+
 ## Configurazione OAuth
 
 ### Google
