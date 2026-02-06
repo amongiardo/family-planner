@@ -7,10 +7,10 @@ PID_DIR="$ROOT_DIR/.dev_pids"
 
 mkdir -p "$LOG_DIR" "$PID_DIR"
 
-PG_BIN="/Library/PostgreSQL/18/bin"
+PG_BIN="/Library/PostgreSQL/16/bin"
 PG_CTL="${PG_BIN}/pg_ctl"
 PG_ISREADY="${PG_BIN}/pg_isready"
-PG_DATA="/Library/PostgreSQL/18/data"
+PG_DATA="/Library/PostgreSQL/16/data"
 
 if [[ -x "$PG_ISREADY" ]]; then
   if ! "$PG_ISREADY" -q; then

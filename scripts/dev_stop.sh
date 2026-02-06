@@ -21,9 +21,9 @@ stop_pid() {
 stop_pid "frontend"
 stop_pid "backend"
 
-PG_BIN="/Library/PostgreSQL/18/bin"
+PG_BIN="/Library/PostgreSQL/16/bin"
 PG_CTL="${PG_BIN}/pg_ctl"
-PG_DATA="/Library/PostgreSQL/18/data"
+PG_DATA="/Library/PostgreSQL/16/data"
 
 if [[ -x "$PG_CTL" ]]; then
   echo "Stopping PostgreSQL (may prompt for sudo)..."
