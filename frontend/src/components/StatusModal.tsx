@@ -24,7 +24,7 @@ export default function StatusModal({
   onClose,
 }: StatusModalProps) {
   return (
-    <Modal show={show} onHide={onClose} centered>
+    <Modal show={show} onHide={onClose} centered dialogClassName="app-modal">
       <Modal.Header closeButton>
         <Modal.Title>{title || variantTitle[variant]}</Modal.Title>
       </Modal.Header>
