@@ -51,6 +51,10 @@ export default function PiattiPage() {
   const [exportFilename, setExportFilename] = useState<string | null>(null);
   const [showAutoModal, setShowAutoModal] = useState(false);
   const [autoRange, setAutoRange] = useState('this_week');
+  const [autoSlots, setAutoSlots] = useState({
+    pranzo: { primo: true, secondo: true, contorno: true },
+    cena: { primo: true, secondo: true, contorno: true },
+  });
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
@@ -129,6 +133,21 @@ export default function PiattiPage() {
     { value: 'next_7_days', label: 'Prossimi 7 giorni' },
     { value: 'workweek', label: 'Settimana lavorativa (lun-ven)' },
   ];
+
+  const applyAutoPreset = (preset: 'full' | 'light' | 'custom') => {
+    if (preset === 'full') {
+      setAutoSlots({
+        pranzo: { primo: true, secondo: true, contorno: true },
+        cena: { primo: true, secondo: true, contorno: true },
+      });
+    }
+    if (preset === 'light') {
+      setAutoSlots({
+        pranzo: { primo: true, secondo: false, contorno: false },
+        cena: { primo: false, secondo: true, contorno: true },
+      });
+    }
+  };
 
   const handleOpenModal = (dish?: Dish) => {
     if (dish) {
@@ -671,6 +690,54 @@ export default function PiattiPage() {
           <p className="small text-muted mb-3">
             Seleziona un intervallo: verranno riempiti solo gli slot vuoti con alternanza automatica.
           </p>
+          <div className="mb-3 d-flex gap-2 flex-wrap">
+            <Button variant="outline-primary" className="btn-primary-soft" onClick={() => applyAutoPreset('full')}>
+              Pasto completo
+            </Button>
+            <Button variant="outline-primary" className="btn-primary-soft" onClick={() => applyAutoPreset('light')}>
+              Primo a pranzo / Secondo+Contorno a cena
+            </Button>
+          </div>
+          <div className="mb-3">
+            <h6 className="mb-2">Pranzo</h6>
+            <div className="d-flex gap-3 flex-wrap">
+              {(['primo', 'secondo', 'contorno'] as const).map((slot) => (
+                <Form.Check
+                  key={`pranzo-${slot}`}
+                  type="checkbox"
+                  id={`pranzo-${slot}`}
+                  label={slot}
+                  checked={autoSlots.pranzo[slot]}
+                  onChange={(e) =>
+                    setAutoSlots((prev) => ({
+                      ...prev,
+                      pranzo: { ...prev.pranzo, [slot]: e.target.checked },
+                    }))
+                  }
+                />
+              ))}
+            </div>
+          </div>
+          <div className="mb-3">
+            <h6 className="mb-2">Cena</h6>
+            <div className="d-flex gap-3 flex-wrap">
+              {(['primo', 'secondo', 'contorno'] as const).map((slot) => (
+                <Form.Check
+                  key={`cena-${slot}`}
+                  type="checkbox"
+                  id={`cena-${slot}`}
+                  label={slot}
+                  checked={autoSlots.cena[slot]}
+                  onChange={(e) =>
+                    setAutoSlots((prev) => ({
+                      ...prev,
+                      cena: { ...prev.cena, [slot]: e.target.checked },
+                    }))
+                  }
+                />
+              ))}
+            </div>
+          </div>
           <Form>
             {autoRanges.map((range) => (
               <Form.Check
@@ -695,7 +762,15 @@ export default function PiattiPage() {
             variant="primary"
             disabled={autoScheduleMutation.isPending}
             onClick={() => {
-              autoScheduleMutation.mutate({ rangeType: autoRange });
+              const slots = {
+                pranzo: (Object.entries(autoSlots.pranzo)
+                  .filter(([, v]) => v)
+                  .map(([k]) => k) as string[]),
+                cena: (Object.entries(autoSlots.cena)
+                  .filter(([, v]) => v)
+                  .map(([k]) => k) as string[]),
+              };
+              autoScheduleMutation.mutate({ rangeType: autoRange, slots });
               setShowAutoModal(false);
             }}
           >

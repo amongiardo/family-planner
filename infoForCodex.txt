@@ -87,3 +87,5 @@ Changelog
 - 2026-02-06: Spesa: lista manuale (niente generazione automatica), aggiunta item via UI/API.
 - 2026-02-06: Dashboard: azioni rapide in box dinamico, allineato ai suggeriti; day strip e azioni rapide nello stesso layout.
 - 2026-02-06: Dashboard: layout top rifatto (week strip sopra, day strip + azioni rapide in grid) e fix mobile per pulsanti.
+- 2026-02-06: Auto-programmazione: scelta slot per pranzo/cena + preset combinazioni.
+- 2026-02-06: Stile Annulla uniformato a Cancella Tutti (btn-secondary rosso soft).

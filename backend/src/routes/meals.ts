@@ -285,7 +285,10 @@ router.put('/:id', isAuthenticated, async (req, res, next) => {
 router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
-    const { rangeType } = req.body as { rangeType?: string };
+    const { rangeType, slots } = req.body as {
+      rangeType?: string;
+      slots?: { pranzo?: DishCategory[]; cena?: DishCategory[] };
+    };
 
     const today = parseDateOnly(new Date().toISOString().slice(0, 10))!;
     let start: Date;
@@ -355,6 +358,11 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
       contorno: dishes.filter((d) => d.category === 'contorno'),
     };
 
+    const slotsByMeal = {
+      pranzo: (slots?.pranzo?.length ? slots.pranzo : ['primo', 'secondo', 'contorno']) as DishCategory[],
+      cena: (slots?.cena?.length ? slots.cena : ['primo', 'secondo', 'contorno']) as DishCategory[],
+    };
+
     const existing = await prisma.mealPlan.findMany({
       where: {
         familyId,
@@ -372,7 +380,8 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
       for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
         const dateKey = d.toISOString().slice(0, 10);
         for (const mealType of ['pranzo', 'cena'] as MealType[]) {
-          for (const slotCategory of ['primo', 'secondo', 'contorno'] as DishCategory[]) {
+          const slotList = slotsByMeal[mealType];
+          for (const slotCategory of slotList) {
             const key = `${dateKey}|${mealType}|${slotCategory}`;
             if (existingKey.has(key)) continue;
 

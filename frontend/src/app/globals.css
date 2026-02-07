@@ -406,6 +406,25 @@ body::after {
   color: #7f1d1d;
 }
 
+.btn-secondary {
+  background: linear-gradient(145deg, rgba(255, 235, 238, 0.95), rgba(255, 205, 210, 0.9));
+  border: none;
+  color: #7f1d1d;
+  font-weight: 800;
+  box-shadow: 0 4px 0 rgba(127, 29, 29, 0.25) !important;
+}
+
+.btn-secondary:hover {
+  background: linear-gradient(145deg, rgba(255, 239, 240, 0.98), rgba(255, 215, 215, 0.95));
+  color: #7f1d1d;
+}
+
+.btn-secondary:active,
+.btn-secondary:focus,
+.btn-secondary:focus-visible {
+  box-shadow: 0 4px 0 rgba(127, 29, 29, 0.25) !important;
+}
+
 .btn-outline-primary {
   color: #3a2f4f;
   border-color: rgba(58, 47, 79, 0.5);
