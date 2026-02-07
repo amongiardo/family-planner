@@ -457,15 +457,18 @@ body::after {
 }
 
 .badge-primo {
-  background-color: #ffb74d;
+  background-color: #ffb74d !important;
+  color: #4e342e !important;
 }
 
 .badge-secondo {
-  background-color: #7e57c2;
+  background-color: #7e57c2 !important;
+  color: #fff !important;
 }
 
 .badge-contorno {
-  background-color: #4db6ac;
+  background-color: #4db6ac !important;
+  color: #0f2f2a !important;
 }
 
 .meal-card {

@@ -286,6 +286,7 @@ export default function CalendarioPage() {
                 center: 'title',
                 right: 'dayGridMonth,dayGridWeek',
               }}
+              buttonText={{ today: 'Oggi' }}
               events={calendarEvents}
               eventOrder="startTime"
               dateClick={handleDateClick}
