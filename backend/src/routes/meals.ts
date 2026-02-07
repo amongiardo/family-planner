@@ -450,4 +450,93 @@ router.delete('/:id', isAuthenticated, async (req, res, next) => {
   }
 });
 
+// Clear all meal plans for family
+router.delete('/', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const result = await prisma.mealPlan.deleteMany({
+      where: { familyId },
+    });
+    res.json({ success: true, deleted: result.count });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Clear meal plans for a date range (rangeType like auto-schedule)
+router.post('/clear-range', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const { rangeType } = req.body as { rangeType?: string };
+
+    const today = parseDateOnly(new Date().toISOString().slice(0, 10))!;
+    let start: Date;
+    let end: Date;
+
+    switch (rangeType) {
+      case 'last_week': {
+        const base = subWeeks(today, 1);
+        start = startOfWeek(base, { weekStartsOn: 1 });
+        end = endOfWeek(base, { weekStartsOn: 1 });
+        break;
+      }
+      case 'next_week': {
+        const base = addWeeks(today, 1);
+        start = startOfWeek(base, { weekStartsOn: 1 });
+        end = endOfWeek(base, { weekStartsOn: 1 });
+        break;
+      }
+      case 'this_month': {
+        start = startOfMonth(today);
+        end = endOfMonth(today);
+        break;
+      }
+      case 'last_month': {
+        const base = subMonths(today, 1);
+        start = startOfMonth(base);
+        end = endOfMonth(base);
+        break;
+      }
+      case 'next_month': {
+        const base = addMonths(today, 1);
+        start = startOfMonth(base);
+        end = endOfMonth(base);
+        break;
+      }
+      case 'last_7_days': {
+        start = subDays(today, 6);
+        end = today;
+        break;
+      }
+      case 'next_7_days': {
+        start = today;
+        end = addDays(today, 6);
+        break;
+      }
+      case 'workweek': {
+        start = startOfWeek(today, { weekStartsOn: 1 });
+        end = addDays(start, 4);
+        break;
+      }
+      case 'this_week':
+      default: {
+        start = startOfWeek(today, { weekStartsOn: 1 });
+        end = endOfWeek(today, { weekStartsOn: 1 });
+        break;
+      }
+    }
+
+    const result = await prisma.mealPlan.deleteMany({
+      where: {
+        familyId,
+        date: { gte: start, lte: end },
+      },
+    });
+
+    res.json({ success: true, deleted: result.count });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

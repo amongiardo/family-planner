@@ -89,5 +89,6 @@ Changelog
 - 2026-02-06: Dashboard: layout top rifatto (week strip sopra, day strip + azioni rapide in grid) e fix mobile per pulsanti.
 - 2026-02-06: Auto-programmazione: scelta slot per pranzo/cena + preset combinazioni.
 - 2026-02-06: Stile Annulla uniformato a Cancella Tutti (btn-secondary rosso soft).
+- 2026-02-06: Calendario: svuota intervallo con range selezionabili (oltre a svuota tutto).
 - 2026-02-06: Aggiunti asset prototipo (dashboard.png, screen_dashboard.png, v4-bubble-world.jsx, meal-planner-prototype.jsx, modal_example.webp) e rimosso vecchio /menu.
 - 2026-02-06: .gitignore aggiornato per logs/ e .dev_pids/.

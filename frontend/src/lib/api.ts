@@ -125,6 +125,14 @@ export const mealsApi = {
   delete: (id: string) => fetchApi<{ success: boolean }>(`/api/meals/${id}`, {
     method: 'DELETE',
   }),
+  clearAll: () => fetchApi<{ success: boolean; deleted: number }>('/api/meals', {
+    method: 'DELETE',
+  }),
+  clearRange: (data: { rangeType: string }) =>
+    fetchApi<{ success: boolean; deleted: number }>('/api/meals/clear-range', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   autoSchedule: (data: { rangeType: string; slots?: { pranzo?: string[]; cena?: string[] } }) =>
     fetchApi<{ success: boolean; created: number }>('/api/meals/auto-schedule', {
       method: 'POST',

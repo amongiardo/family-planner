@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Card, Modal, Form, Badge, Spinner, Row, Col } from 'react-bootstrap';
+import { Card, Modal, Form, Badge, Spinner, Row, Col, Button } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -27,6 +27,9 @@ export default function CalendarioPage() {
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [showClearRangeModal, setShowClearRangeModal] = useState(false);
+  const [clearRange, setClearRange] = useState('this_week');
 
   const toDateOnly = useCallback((value: string) => value.split('T')[0], []);
   const toLocalDate = useCallback((value: string) => new Date(`${toDateOnly(value)}T00:00:00`), [
@@ -77,6 +80,32 @@ export default function CalendarioPage() {
       queryClient.invalidateQueries({ queryKey: ['meals'] });
     },
   });
+
+  const clearAllMutation = useMutation({
+    mutationFn: mealsApi.clearAll,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+    },
+  });
+
+  const clearRangeMutation = useMutation({
+    mutationFn: mealsApi.clearRange,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+    },
+  });
+
+  const clearRanges = [
+    { value: 'this_week', label: 'Questa settimana (lun-dom)' },
+    { value: 'last_week', label: 'Settimana scorsa (lun-dom)' },
+    { value: 'next_week', label: 'Settimana prossima (lun-dom)' },
+    { value: 'this_month', label: 'Questo mese' },
+    { value: 'last_month', label: 'Mese scorso' },
+    { value: 'next_month', label: 'Mese prossimo' },
+    { value: 'last_7_days', label: 'Ultimi 7 giorni' },
+    { value: 'next_7_days', label: 'Prossimi 7 giorni' },
+    { value: 'workweek', label: 'Settimana lavorativa (lun-ven)' },
+  ];
 
   const calendarEvents = useMemo(() => {
     if (!meals) return [];
@@ -215,6 +244,14 @@ export default function CalendarioPage() {
             <Spinner animation="border" size="sm" className="text-light" />
           )}
         </div>
+        <div className="d-flex gap-2 flex-wrap">
+          <Button variant="primary" className="btn-danger-soft" onClick={() => setShowClearRangeModal(true)}>
+            Svuota Intervallo
+          </Button>
+          <Button variant="primary" className="btn-danger-soft" onClick={() => setShowClearModal(true)}>
+            Svuota Calendario
+          </Button>
+        </div>
       </div>
 
       <Card className="calendar-card">
@@ -331,6 +368,83 @@ export default function CalendarioPage() {
           setPendingDeleteId(null);
         }}
       />
+
+      <Modal
+        show={showClearModal}
+        onHide={() => setShowClearModal(false)}
+        centered
+        dialogClassName="app-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Svuota Calendario</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Questa azione rimuove tutti i pasti dal calendario. Vuoi continuare?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowClearModal(false)}>
+            Annulla
+          </Button>
+          <Button
+            variant="primary"
+            className="btn-danger-soft"
+            disabled={clearAllMutation.isPending}
+            onClick={() => {
+              clearAllMutation.mutate();
+              setShowClearModal(false);
+            }}
+          >
+            {clearAllMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Svuota'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showClearRangeModal}
+        onHide={() => setShowClearRangeModal(false)}
+        centered
+        dialogClassName="app-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Svuota Intervallo</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="small text-muted mb-3">
+            Seleziona un intervallo per rimuovere i pasti pianificati.
+          </p>
+          <Form>
+            {clearRanges.map((range) => (
+              <Form.Check
+                key={range.value}
+                type="radio"
+                id={`clear-${range.value}`}
+                name="clearRange"
+                label={range.label}
+                value={range.value}
+                checked={clearRange === range.value}
+                onChange={(e) => setClearRange(e.target.value)}
+                className="mb-2"
+              />
+            ))}
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowClearRangeModal(false)}>
+            Annulla
+          </Button>
+          <Button
+            variant="primary"
+            className="btn-danger-soft"
+            disabled={clearRangeMutation.isPending}
+            onClick={() => {
+              clearRangeMutation.mutate({ rangeType: clearRange });
+              setShowClearRangeModal(false);
+            }}
+          >
+            {clearRangeMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Svuota'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </DashboardLayout>
   );
 }
