@@ -81,3 +81,4 @@ Changelog
 - 2026-02-06: Dashboard/Calendario aggiornati con 3 select per pranzo e cena (slot categoria).
 - 2026-02-06: /piatti aggiunta auto-programmazione pasti con range selezionabili.
 - 2026-02-06: Suggerimenti aggiornati per categoria slot.
+- 2026-02-06: sample_dishes.csv corretto (pangrattato).
