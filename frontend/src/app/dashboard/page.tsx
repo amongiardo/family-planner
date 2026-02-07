@@ -332,7 +332,9 @@ export default function DashboardPage() {
                         const meal = getMealBySlot(selectedDayIndex, mealType, slot);
                         return (
                           <div key={`${mealType}-${slot}`} className="d-flex align-items-center gap-3">
-                            <Badge className={getCategoryBadgeClass(slot)}>{slot}</Badge>
+                            <span className="meal-slot-label">
+                              <Badge className={getCategoryBadgeClass(slot)}>{slot}</Badge>
+                            </span>
                             <Form.Select
                               value={meal?.dishId || ''}
                               onChange={(e) => handleSlotChange(mealType, slot, e.target.value)}

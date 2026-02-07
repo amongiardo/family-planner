@@ -290,7 +290,9 @@ export default function CalendarioPage() {
                               key={`${mealType}-${slot}`}
                               className="d-flex align-items-center gap-3"
                             >
-                              <Badge className={getCategoryBadgeClass(slot)}>{slot}</Badge>
+                              <span className="meal-slot-label">
+                                <Badge className={getCategoryBadgeClass(slot)}>{slot}</Badge>
+                              </span>
                               <Form.Select
                                 value={meal?.dishId || ''}
                                 onChange={(e) =>

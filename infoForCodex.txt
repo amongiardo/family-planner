@@ -82,3 +82,4 @@ Changelog
 - 2026-02-06: /piatti aggiunta auto-programmazione pasti con range selezionabili.
 - 2026-02-06: Suggerimenti aggiornati per categoria slot.
 - 2026-02-06: sample_dishes.csv corretto (pangrattato).
+- 2026-02-06: Allineate label slot (primo/secondo/contorno) in dashboard e calendario.

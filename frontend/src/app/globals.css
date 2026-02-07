@@ -782,6 +782,12 @@ body::after {
   font-size: 12px;
 }
 
+.meal-slot-label {
+  width: 86px;
+  display: inline-flex;
+  justify-content: flex-start;
+}
+
 .modal-backdrop.show {
   opacity: 0.25;
 }
