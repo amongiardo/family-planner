@@ -1,11 +1,16 @@
 import { Router } from 'express';
 import { DishCategory, MealType } from '@prisma/client';
-import { addDays, addMonths, addWeeks, endOfMonth, endOfWeek, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from 'date-fns';
+import { addDays, addMonths, addWeeks, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from 'date-fns';
 import prisma from '../prisma';
 import { isAuthenticated, getFamilyId } from '../middleware/auth';
 import { parseDateOnly } from '../utils/date';
 
 const router = Router();
+
+function normalizeDateOnly(date: Date) {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  return parseDateOnly(dateStr)!;
+}
 
 // Get meals for a week
 router.get('/', isAuthenticated, async (req, res, next) => {
@@ -290,7 +295,7 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
       slots?: { pranzo?: DishCategory[]; cena?: DishCategory[] };
     };
 
-    const today = parseDateOnly(new Date().toISOString().slice(0, 10))!;
+    const today = parseDateOnly(format(new Date(), 'yyyy-MM-dd'))!;
     let start: Date;
     let end: Date;
 
@@ -344,7 +349,10 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
         start = startOfWeek(today, { weekStartsOn: 1 });
         end = endOfWeek(today, { weekStartsOn: 1 });
         break;
-      }
+    }
+
+    start = normalizeDateOnly(start);
+    end = normalizeDateOnly(end);
     }
 
     const dishes = await prisma.dish.findMany({ where: { familyId } });
@@ -370,15 +378,26 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
       },
     });
 
-    const existingKey = new Set(existing.map((m) => `${m.date.toISOString().slice(0, 10)}|${m.mealType}|${m.slotCategory}`));
+    const existingKey = new Set(
+      existing.map(
+        (m) => `${format(new Date(m.date), 'yyyy-MM-dd')}|${m.mealType}|${m.slotCategory}`
+      )
+    );
 
     const lastUsed = new Map<string, string>();
     const indexByKey = new Map<string, number>();
 
+    console.log('AUTO-SCHEDULE RANGE', {
+      rangeType,
+      start: format(start, 'yyyy-MM-dd'),
+      end: format(end, 'yyyy-MM-dd'),
+    });
+
     const created: number = await prisma.$transaction(async (tx) => {
       let count = 0;
-      for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
-        const dateKey = d.toISOString().slice(0, 10);
+      for (let d = new Date(start); d <= end; d = normalizeDateOnly(addDays(d, 1))) {
+        const dateKey = format(d, 'yyyy-MM-dd');
+        const dateForDb = parseDateOnly(dateKey)!;
         for (const mealType of ['pranzo', 'cena'] as MealType[]) {
           const slotList = slotsByMeal[mealType];
           for (const slotCategory of slotList) {
@@ -406,7 +425,7 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
             await tx.mealPlan.create({
               data: {
                 familyId,
-                date: d,
+                date: dateForDb,
                 mealType,
                 slotCategory,
                 dishId: dish.id,
@@ -469,7 +488,7 @@ router.post('/clear-range', isAuthenticated, async (req, res, next) => {
     const familyId = getFamilyId(req);
     const { rangeType } = req.body as { rangeType?: string };
 
-    const today = parseDateOnly(new Date().toISOString().slice(0, 10))!;
+    const today = parseDateOnly(format(new Date(), 'yyyy-MM-dd'))!;
     let start: Date;
     let end: Date;
 
@@ -523,7 +542,10 @@ router.post('/clear-range', isAuthenticated, async (req, res, next) => {
         start = startOfWeek(today, { weekStartsOn: 1 });
         end = endOfWeek(today, { weekStartsOn: 1 });
         break;
-      }
+    }
+
+    start = normalizeDateOnly(start);
+    end = normalizeDateOnly(end);
     }
 
     const result = await prisma.mealPlan.deleteMany({
