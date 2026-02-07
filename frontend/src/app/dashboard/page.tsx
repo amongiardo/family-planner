@@ -292,35 +292,35 @@ export default function DashboardPage() {
         <div className="dashboard-avatar">👨‍👩‍👧</div>
       </div>
 
-      <div className="dashboard-top">
-        <div className="week-strip">
-          <Button variant="outline-primary" size="sm" onClick={handleThisWeek}>
-            Oggi
-          </Button>
-          {[-1, 0, 1].map((offset) => {
-            const base = addWeeks(weekStart, offset);
-            const label = `${format(base, 'd MMM', { locale: it })}–${format(
-              addDays(base, 6),
-              'd MMM',
-              { locale: it }
-            )}`;
-            const isActive = offset === 0;
-            return (
-              <button
-                key={label}
-                className={`week-pill ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  setWeekStart(base);
-                  setSelectedDayIndex(0);
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
+      <div className="week-strip mb-3">
+        <Button variant="outline-primary" size="sm" onClick={handleThisWeek}>
+          Oggi
+        </Button>
+        {[-1, 0, 1].map((offset) => {
+          const base = addWeeks(weekStart, offset);
+          const label = `${format(base, 'd MMM', { locale: it })}–${format(
+            addDays(base, 6),
+            'd MMM',
+            { locale: it }
+          )}`;
+          const isActive = offset === 0;
+          return (
+            <button
+              key={label}
+              className={`week-pill ${isActive ? 'active' : ''}`}
+              onClick={() => {
+                setWeekStart(base);
+                setSelectedDayIndex(0);
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
 
-        <div className="day-actions-row">
+      <Row className="g-4 align-items-start mb-3">
+        <Col lg={8}>
           <div className="day-strip" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             {days.map((day, i) => {
               const pranzo = getMealsByDayAndType(i, 'pranzo')?.length;
@@ -343,7 +343,8 @@ export default function DashboardPage() {
               );
             })}
           </div>
-
+        </Col>
+        <Col lg={4}>
           <Card className="quick-actions-card">
             <Card.Header>Azioni rapide</Card.Header>
             <Card.Body>
@@ -363,8 +364,8 @@ export default function DashboardPage() {
               </Button>
             </Card.Body>
           </Card>
-        </div>
-      </div>
+        </Col>
+      </Row>
 
       {mealsLoading ? (
         <div className="text-center py-5">

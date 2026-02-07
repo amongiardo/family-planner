@@ -834,35 +834,9 @@ body::after {
   white-space: nowrap;
 }
 
-.dashboard-top {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.day-actions-row {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  justify-content: center;
-  width: 100%;
-}
-
-.day-actions-row .day-strip {
-  flex: 1 1 420px;
-}
-
-.day-actions-row .quick-actions-card {
-  flex: 0 0 33.3333%;
-  max-width: 33.3333%;
-}
-
 @media (max-width: 992px) {
-  .day-actions-row .quick-actions-card {
-    flex: 1 1 100%;
-    max-width: 100%;
+  .quick-actions-card .card-body {
+    flex-direction: column;
   }
 }
 
