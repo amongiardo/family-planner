@@ -110,10 +110,24 @@ export default function CalendarioPage() {
   const calendarEvents = useMemo(() => {
     if (!meals) return [];
 
-    return meals.map((meal) => ({
+    const slotOrder = { primo: 0, secondo: 1, contorno: 2 } as const;
+    const mealOrder = { pranzo: 0, cena: 1 } as const;
+
+    const sorted = [...meals].sort((a, b) => {
+      const dateA = toDateOnly(a.date);
+      const dateB = toDateOnly(b.date);
+      if (dateA !== dateB) return dateA < dateB ? -1 : 1;
+      if (mealOrder[a.mealType] !== mealOrder[b.mealType]) {
+        return mealOrder[a.mealType] - mealOrder[b.mealType];
+      }
+      return slotOrder[a.slotCategory] - slotOrder[b.slotCategory];
+    });
+
+    return sorted.map((meal) => ({
       id: meal.id,
       title: `${meal.mealType === 'pranzo' ? 'Pranzo' : 'Cena'} · ${meal.slotCategory}: ${meal.dish.name}`,
       start: toDateOnly(meal.date),
+      startTime: `${mealOrder[meal.mealType]}${slotOrder[meal.slotCategory]}`,
       allDay: true,
       extendedProps: {
         mealType: meal.mealType,
@@ -273,6 +287,7 @@ export default function CalendarioPage() {
                 right: 'dayGridMonth,dayGridWeek',
               }}
               events={calendarEvents}
+              eventOrder="startTime"
               dateClick={handleDateClick}
               eventContent={eventContent}
               height="auto"
