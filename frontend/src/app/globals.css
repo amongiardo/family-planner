@@ -788,6 +788,84 @@ body::after {
   justify-content: flex-start;
 }
 
+.quick-action-btn {
+  border-color: rgba(58, 47, 79, 0.6);
+  color: #3a2f4f;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.quick-action-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: #3a2f4f;
+}
+
+.week-nav-btn {
+  color: #3a2f4f;
+  border-color: rgba(58, 47, 79, 0.5);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.week-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: #3a2f4f;
+}
+
+.quick-actions-card {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 18px;
+}
+
+.quick-actions-card .card-header {
+  background: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  font-weight: 800;
+}
+
+.quick-actions-card .card-body {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.quick-actions-card .btn {
+  flex: 1 1 0;
+  white-space: nowrap;
+}
+
+.dashboard-top {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.day-actions-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.day-actions-row .day-strip {
+  flex: 1 1 420px;
+}
+
+.day-actions-row .quick-actions-card {
+  flex: 0 0 33.3333%;
+  max-width: 33.3333%;
+}
+
+@media (max-width: 992px) {
+  .day-actions-row .quick-actions-card {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}
+
 .modal-backdrop.show {
   opacity: 0.25;
 }

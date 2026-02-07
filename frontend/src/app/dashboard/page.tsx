@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
-import { Row, Col, Card, Button, Badge, ListGroup, Spinner, Form } from 'react-bootstrap';
+import { Row, Col, Card, Button, Badge, ListGroup, Spinner, Form, Modal } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, differenceInCalendarDays } from 'date-fns';
 import { it } from 'date-fns/locale';
-import Link from 'next/link';
-import { FaPlus, FaLightbulb, FaCalendarAlt } from 'react-icons/fa';
+import { FaPlus, FaLightbulb } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
-import { mealsApi, suggestionsApi, dishesApi, familyApi, weatherApi } from '@/lib/api';
+import { mealsApi, suggestionsApi, dishesApi, familyApi, weatherApi, shoppingApi } from '@/lib/api';
 import { DishCategory, MealPlan, MealType } from '@/types';
 import StatusModal from '@/components/StatusModal';
 
@@ -36,6 +35,13 @@ export default function DashboardPage() {
   const touchStart = useRef<number | null>(null);
 
   const [error, setError] = useState('');
+  const [showDishModal, setShowDishModal] = useState(false);
+  const [showShoppingModal, setShowShoppingModal] = useState(false);
+  const [newDishName, setNewDishName] = useState('');
+  const [newDishCategory, setNewDishCategory] = useState<DishCategory>('primo');
+  const [newDishIngredients, setNewDishIngredients] = useState('');
+  const [shoppingItem, setShoppingItem] = useState('');
+  const [shoppingQty, setShoppingQty] = useState('');
 
   const { data: meals, isLoading: mealsLoading } = useQuery({
     queryKey: ['meals', 'range', rangeStart, rangeEnd],
@@ -158,6 +164,36 @@ export default function DashboardPage() {
     },
   });
 
+  const createDishMutation = useMutation({
+    mutationFn: dishesApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dishes'] });
+      setShowDishModal(false);
+      setNewDishName('');
+      setNewDishIngredients('');
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
+  const addShoppingMutation = useMutation({
+    mutationFn: () =>
+      shoppingApi.addItem({
+        week: rangeStart,
+        ingredient: shoppingItem,
+        quantity: shoppingQty || undefined,
+      }),
+    onSuccess: () => {
+      setShowShoppingModal(false);
+      setShoppingItem('');
+      setShoppingQty('');
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Parameters<typeof mealsApi.update>[1] }) =>
       mealsApi.update(id, data),
@@ -256,54 +292,78 @@ export default function DashboardPage() {
         <div className="dashboard-avatar">👨‍👩‍👧</div>
       </div>
 
-      <div className="week-strip">
-        <Button variant="outline-primary" size="sm" onClick={handleThisWeek}>
-          Oggi
-        </Button>
-        {[-1, 0, 1].map((offset) => {
-          const base = addWeeks(weekStart, offset);
-          const label = `${format(base, 'd MMM', { locale: it })}–${format(
-            addDays(base, 6),
-            'd MMM',
-            { locale: it }
-          )}`;
-          const isActive = offset === 0;
-          return (
-            <button
-              key={label}
-              className={`week-pill ${isActive ? 'active' : ''}`}
-              onClick={() => {
-                setWeekStart(base);
-                setSelectedDayIndex(0);
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      <div className="dashboard-top">
+        <div className="week-strip">
+          <Button variant="outline-primary" size="sm" onClick={handleThisWeek}>
+            Oggi
+          </Button>
+          {[-1, 0, 1].map((offset) => {
+            const base = addWeeks(weekStart, offset);
+            const label = `${format(base, 'd MMM', { locale: it })}–${format(
+              addDays(base, 6),
+              'd MMM',
+              { locale: it }
+            )}`;
+            const isActive = offset === 0;
+            return (
+              <button
+                key={label}
+                className={`week-pill ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  setWeekStart(base);
+                  setSelectedDayIndex(0);
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
 
-      <div className="day-strip" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-        {days.map((day, i) => {
-          const pranzo = getMealsByDayAndType(i, 'pranzo')?.length;
-          const cena = getMealsByDayAndType(i, 'cena')?.length;
-          const isActive = i === selectedDayIndex;
-          const isToday = format(day.date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
-          return (
-            <button
-              key={day.number}
-              className={`day-pill ${isActive ? 'active' : ''} ${isToday ? 'today' : ''}`}
-              onClick={() => setSelectedDayIndex(i)}
-            >
-              <span className="day-pill-short">{day.short}</span>
-              <span className="day-pill-number">{day.number}</span>
-              <div className="day-pill-dots">
-                <span className={`day-pill-dot ${pranzo ? 'filled lunch' : ''}`} />
-                <span className={`day-pill-dot ${cena ? 'filled dinner' : ''}`} />
-              </div>
-            </button>
-          );
-        })}
+        <div className="day-actions-row">
+          <div className="day-strip" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+            {days.map((day, i) => {
+              const pranzo = getMealsByDayAndType(i, 'pranzo')?.length;
+              const cena = getMealsByDayAndType(i, 'cena')?.length;
+              const isActive = i === selectedDayIndex;
+              const isToday = format(day.date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
+              return (
+                <button
+                  key={day.number}
+                  className={`day-pill ${isActive ? 'active' : ''} ${isToday ? 'today' : ''}`}
+                  onClick={() => setSelectedDayIndex(i)}
+                >
+                  <span className="day-pill-short">{day.short}</span>
+                  <span className="day-pill-number">{day.number}</span>
+                  <div className="day-pill-dots">
+                    <span className={`day-pill-dot ${pranzo ? 'filled lunch' : ''}`} />
+                    <span className={`day-pill-dot ${cena ? 'filled dinner' : ''}`} />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <Card className="quick-actions-card">
+            <Card.Header>Azioni rapide</Card.Header>
+            <Card.Body>
+              <Button
+                variant="outline-primary"
+                className="btn-primary-soft"
+                onClick={() => setShowDishModal(true)}
+              >
+                <FaPlus className="me-1" /> Aggiungi Piatto
+              </Button>
+              <Button
+                variant="outline-primary"
+                className="btn-primary-soft"
+                onClick={() => setShowShoppingModal(true)}
+              >
+                <FaPlus className="me-1" /> Aggiungi a Lista Spesa
+              </Button>
+            </Card.Body>
+          </Card>
+        </div>
       </div>
 
       {mealsLoading ? (
@@ -388,24 +448,95 @@ export default function DashboardPage() {
               </Card.Body>
             </Card>
 
-            <Card>
-              <Card.Header>Azioni rapide</Card.Header>
-              <Card.Body className="d-grid gap-2">
-                <Link href="/calendario" passHref>
-                  <Button variant="outline-primary" className="d-flex align-items-center gap-2 w-100">
-                    <FaCalendarAlt /> Apri Calendario
-                  </Button>
-                </Link>
-                <Link href="/piatti" passHref>
-                  <Button variant="outline-primary" className="d-flex align-items-center gap-2 w-100">
-                    <FaPlus /> Aggiungi Piatto
-                  </Button>
-                </Link>
-              </Card.Body>
-            </Card>
+            <div />
           </Col>
         </Row>
       )}
+
+      <Modal show={showDishModal} onHide={() => setShowDishModal(false)} centered dialogClassName="app-modal">
+        <Modal.Header closeButton>
+          <Modal.Title>Nuovo Piatto</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Nome</Form.Label>
+              <Form.Control value={newDishName} onChange={(e) => setNewDishName(e.target.value)} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Categoria</Form.Label>
+              <Form.Select
+                value={newDishCategory}
+                onChange={(e) => setNewDishCategory(e.target.value as DishCategory)}
+              >
+                <option value="primo">Primo</option>
+                <option value="secondo">Secondo</option>
+                <option value="contorno">Contorno</option>
+              </Form.Select>
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Ingredienti (separati da ;)</Form.Label>
+              <Form.Control
+                value={newDishIngredients}
+                onChange={(e) => setNewDishIngredients(e.target.value)}
+                placeholder="es. pasta;pomodoro;olio"
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDishModal(false)}>
+            Annulla
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!newDishName.trim() || createDishMutation.isPending}
+            onClick={() => {
+              const ingredients = newDishIngredients
+                .split(';')
+                .map((i) => i.trim())
+                .filter(Boolean);
+              createDishMutation.mutate({
+                name: newDishName.trim(),
+                category: newDishCategory,
+                ingredients,
+              });
+            }}
+          >
+            {createDishMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Salva'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showShoppingModal} onHide={() => setShowShoppingModal(false)} centered dialogClassName="app-modal">
+        <Modal.Header closeButton>
+          <Modal.Title>Aggiungi a Lista Spesa</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Ingrediente</Form.Label>
+              <Form.Control value={shoppingItem} onChange={(e) => setShoppingItem(e.target.value)} />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Quantità (opzionale)</Form.Label>
+              <Form.Control value={shoppingQty} onChange={(e) => setShoppingQty(e.target.value)} />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowShoppingModal(false)}>
+            Annulla
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!shoppingItem.trim() || addShoppingMutation.isPending}
+            onClick={() => addShoppingMutation.mutate()}
+          >
+            {addShoppingMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Aggiungi'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <StatusModal
         show={Boolean(error)}

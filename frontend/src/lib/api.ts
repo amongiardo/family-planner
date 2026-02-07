@@ -146,10 +146,14 @@ export const suggestionsApi = {
 // Shopping
 export const shoppingApi = {
   get: (week: string) => fetchApi<ShoppingList>(`/api/shopping?week=${week}`),
-  regenerate: (week: string) => fetchApi<ShoppingList>('/api/shopping/regenerate', {
-    method: 'POST',
-    body: JSON.stringify({ week }),
-  }),
+  addItem: (data: { week: string; ingredient: string; quantity?: string }) =>
+    fetchApi<{ id: string; ingredient: string; quantity?: string; checked: boolean; dishNames: string[] }>(
+      '/api/shopping/items',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    ),
   checkItem: (itemId: string, week: string, checked: boolean) =>
     fetchApi<{ id: string; checked: boolean }>(`/api/shopping/${itemId}/check`, {
       method: 'PUT',

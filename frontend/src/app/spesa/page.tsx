@@ -1,22 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Button, Form, ListGroup, Spinner, Badge, Row, Col } from 'react-bootstrap';
+import { Card, Button, Form, ListGroup, Spinner, Row, Col } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaSync, FaChevronLeft, FaChevronRight, FaCheck, FaShoppingCart } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaCheck, FaShoppingCart, FaPlus } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { shoppingApi } from '@/lib/api';
 import { ShoppingListItem } from '@/types';
 import StatusModal from '@/components/StatusModal';
-import ConfirmModal from '@/components/ConfirmModal';
 
 export default function SpesaPage() {
   const queryClient = useQueryClient();
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [dismissError, setDismissError] = useState(false);
-  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [ingredient, setIngredient] = useState('');
+  const [quantity, setQuantity] = useState('');
   const weekString = format(currentWeek, 'yyyy-MM-dd');
 
   const { data: shoppingList, isLoading, error } = useQuery({
@@ -24,9 +24,16 @@ export default function SpesaPage() {
     queryFn: () => shoppingApi.get(weekString),
   });
 
-  const regenerateMutation = useMutation({
-    mutationFn: () => shoppingApi.regenerate(weekString),
+  const addItemMutation = useMutation({
+    mutationFn: () =>
+      shoppingApi.addItem({
+        week: weekString,
+        ingredient,
+        quantity: quantity || undefined,
+      }),
     onSuccess: () => {
+      setIngredient('');
+      setQuantity('');
       queryClient.invalidateQueries({ queryKey: ['shopping', weekString] });
     },
   });
@@ -55,8 +62,9 @@ export default function SpesaPage() {
     checkItemMutation.mutate({ itemId: item.id, checked: !item.checked });
   };
 
-  const handleRegenerate = () => {
-    setShowRegenerateConfirm(true);
+  const handleAddItem = () => {
+    if (!ingredient.trim()) return;
+    addItemMutation.mutate();
   };
 
   const items = shoppingList?.items || [];
@@ -68,19 +76,6 @@ export default function SpesaPage() {
     <DashboardLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="page-title">Lista della Spesa</h2>
-        <Button
-          variant="outline-primary"
-          onClick={handleRegenerate}
-          disabled={regenerateMutation.isPending}
-        >
-          {regenerateMutation.isPending ? (
-            <Spinner size="sm" animation="border" />
-          ) : (
-            <>
-              <FaSync className="me-1" /> Rigenera
-            </>
-          )}
-        </Button>
       </div>
 
       <Card className="mb-4">
@@ -88,13 +83,13 @@ export default function SpesaPage() {
           <Row className="align-items-center">
             <Col>
               <div className="d-flex align-items-center gap-2">
-                <Button variant="outline-secondary" size="sm" onClick={handlePrevWeek}>
+                <Button variant="outline-secondary" size="sm" className="week-nav-btn" onClick={handlePrevWeek}>
                   <FaChevronLeft />
                 </Button>
-                <Button variant="outline-secondary" size="sm" onClick={handleThisWeek}>
+                <Button variant="outline-secondary" size="sm" className="week-nav-btn" onClick={handleThisWeek}>
                   Oggi
                 </Button>
-                <Button variant="outline-secondary" size="sm" onClick={handleNextWeek}>
+                <Button variant="outline-secondary" size="sm" className="week-nav-btn" onClick={handleNextWeek}>
                   <FaChevronRight />
                 </Button>
                 <span className="ms-2">
@@ -192,21 +187,48 @@ export default function SpesaPage() {
               Nessun ingrediente nella lista per questa settimana.
             </p>
             <p className="text-muted small">
-              Pianifica i pasti nel calendario per generare la lista della spesa.
+              Aggiungi manualmente gli ingredienti da acquistare.
             </p>
           </Card.Body>
         </Card>
       )}
-
-      <ConfirmModal
-        show={showRegenerateConfirm}
-        message="Rigenerare la lista? Le modifiche manuali andranno perse."
-        onCancel={() => setShowRegenerateConfirm(false)}
-        onConfirm={() => {
-          setShowRegenerateConfirm(false);
-          regenerateMutation.mutate();
-        }}
-      />
+      <Card className="mt-4">
+        <Card.Body>
+          <Row className="g-2 align-items-end">
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>Ingrediente</Form.Label>
+                <Form.Control
+                  value={ingredient}
+                  onChange={(e) => setIngredient(e.target.value)}
+                  placeholder="Es. Latte, pane, pomodori..."
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Quantità (opzionale)</Form.Label>
+                <Form.Control
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  placeholder="Es. 2 kg, 3 pz"
+                />
+              </Form.Group>
+            </Col>
+            <Col md={2} className="d-grid">
+              <Button variant="primary" onClick={handleAddItem} disabled={addItemMutation.isPending}>
+                {addItemMutation.isPending ? (
+                  <Spinner size="sm" animation="border" />
+                ) : (
+                  <>
+                    <FaPlus className="me-1" /> Aggiungi
+                  </>
+                )}
+              </Button>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
     </DashboardLayout>
   );
 }

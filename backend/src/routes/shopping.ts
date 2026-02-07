@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { isAuthenticated, getFamilyId } from '../middleware/auth';
 import {
   getOrCreateShoppingList,
-  regenerateShoppingList,
+  addShoppingItem,
   updateItemCheckStatus,
 } from '../services/shoppingList';
 import { parseDateOnly } from '../utils/date';
@@ -32,11 +32,11 @@ router.get('/', isAuthenticated, async (req, res, next) => {
   }
 });
 
-// Regenerate shopping list from current meal plans
-router.post('/regenerate', isAuthenticated, async (req, res, next) => {
+// Add item manually
+router.post('/items', isAuthenticated, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
-    const { week } = req.body;
+    const { week, ingredient, quantity } = req.body ?? {};
 
     if (!week || typeof week !== 'string') {
       return res.status(400).json({ error: 'Week parameter is required (YYYY-MM-DD)' });
@@ -47,9 +47,13 @@ router.post('/regenerate', isAuthenticated, async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid date format' });
     }
 
-    const shoppingList = await regenerateShoppingList(familyId, date);
+    if (!ingredient || typeof ingredient !== 'string') {
+      return res.status(400).json({ error: 'Ingredient is required' });
+    }
 
-    res.json(shoppingList);
+    const item = await addShoppingItem(familyId, date, ingredient, quantity);
+
+    res.json(item);
   } catch (error) {
     next(error);
   }

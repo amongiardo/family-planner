@@ -83,3 +83,6 @@ Changelog
 - 2026-02-06: Suggerimenti aggiornati per categoria slot.
 - 2026-02-06: sample_dishes.csv corretto (pangrattato).
 - 2026-02-06: Allineate label slot (primo/secondo/contorno) in dashboard e calendario.
+- 2026-02-06: Dashboard: azioni rapide spostate in alto, modali per aggiungere piatto e item spesa.
+- 2026-02-06: Spesa: lista manuale (niente generazione automatica), aggiunta item via UI/API.
+- 2026-02-06: Dashboard: azioni rapide in box dinamico, allineato ai suggeriti; day strip e azioni rapide nello stesso layout.
