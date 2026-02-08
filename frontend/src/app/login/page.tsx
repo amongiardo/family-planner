@@ -77,7 +77,6 @@ export default function LoginPage() {
             <Form.Label>Email</Form.Label>
             <Form.Control
               type="email"
-              placeholder="nome@dominio.com"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               required
@@ -101,7 +100,6 @@ export default function LoginPage() {
             <Form.Label>Password</Form.Label>
             <Form.Control
               type="password"
-              placeholder="••••••••"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required

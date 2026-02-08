@@ -94,5 +94,6 @@ Changelog
 - 2026-02-06: Calendario: ordine eventi pranzo→slot e evidenza oggi con background accent-lunch.
 - 2026-02-06: Badge categorie (primo/secondo/contorno) con colori distinti forzati.
 - 2026-02-06: Login: nascosti i pulsanti OAuth (Google/GitHub) per sviluppo futuro.
+- 2026-02-06: Login: rimossi placeholder da email e password.
 - 2026-02-06: Aggiunti asset prototipo (dashboard.png, screen_dashboard.png, v4-bubble-world.jsx, meal-planner-prototype.jsx, modal_example.webp) e rimosso vecchio /menu.
 - 2026-02-06: .gitignore aggiornato per logs/ e .dev_pids/.
