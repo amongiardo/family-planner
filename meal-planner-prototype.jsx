@@ -324,7 +324,7 @@ export default function FamilyMealPlanner() {
       <div style={{ padding: "52px 20px 8px", position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: -0.5 }}>🍽️ Meal Planner</h1>
+            <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: -0.5 }}>🍽️ Family Planner</h1>
             <p style={{ margin: "2px 0 0", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>Famiglia · Feb 2026</p>
           </div>
           <div style={{

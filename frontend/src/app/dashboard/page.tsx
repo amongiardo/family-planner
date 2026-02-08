@@ -279,7 +279,7 @@ export default function DashboardPage() {
       <div className="dashboard-hero">
         <div>
           <p className="dashboard-kicker">👋 Benvenuto!</p>
-          <h1 className="dashboard-title">Meal Planner 🍽️</h1>
+          <h1 className="dashboard-title">Family Planner 🍽️</h1>
           <p className="dashboard-date">
             {format(today, 'EEEE d MMMM yyyy', { locale: it })} · {city}
             {weather?.temperature !== undefined && weather?.description

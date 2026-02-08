@@ -13,7 +13,7 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: 'Family Meal Planner',
+  title: 'Family Planner',
   description: 'Piano pasti familiare con suggerimenti intelligenti',
 };
 

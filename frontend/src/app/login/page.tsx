@@ -55,8 +55,8 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card text-center">
-        <h1 className="mb-2 login-title">Family Meal Planner</h1>
-        <p className="text-muted mb-4">Pianifica i pasti della tua famiglia</p>
+        <h1 className="mb-2 login-title">Family Planner</h1>
+        <p className="text-muted mb-4">Pianifica e organizza la tua famiglia</p>
 
         <StatusModal
           show={Boolean(error || localError)}

@@ -13,7 +13,7 @@ export default function Navbar() {
         <Link href="/dashboard" passHref legacyBehavior>
           <BsNavbar.Brand className="d-flex align-items-center gap-2">
             <span style={{ fontSize: 18 }}>🍽️</span>
-            Family Meal Planner
+            Family Planner
           </BsNavbar.Brand>
         </Link>
 

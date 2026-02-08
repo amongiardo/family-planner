@@ -1,6 +1,6 @@
-# Family Meal Planner
+# Family Planner
 
-Sistema di pianificazione pasti familiare con suggerimenti intelligenti per evitare ripetizioni e garantire un'alimentazione bilanciata.
+Sistema di organizzazione familiare: pianificazione dei pasti, calendario e lista spesa, con suggerimenti intelligenti.
 
 ## Stack Tecnologico
 
