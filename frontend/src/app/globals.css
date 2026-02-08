@@ -863,7 +863,9 @@ body::after {
 
 .quick-actions-card .btn {
   flex: 1 1 0;
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
+  text-align: center;
 }
 
 @media (max-width: 992px) {

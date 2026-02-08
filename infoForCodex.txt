@@ -97,5 +97,6 @@ Changelog
 - 2026-02-06: Login: rimossi placeholder da email e password.
 - 2026-02-06: Rebranding: rinominato in Family Planner e aggiornata la descrizione.
 - 2026-02-06: Login: descrizione aggiornata per riflettere pianificazione familiare.
+- 2026-02-06: Dashboard: quick actions non sbordano su desktop (wrap controllato).
 - 2026-02-06: Aggiunti asset prototipo (dashboard.png, screen_dashboard.png, v4-bubble-world.jsx, meal-planner-prototype.jsx, modal_example.webp) e rimosso vecchio /menu.
 - 2026-02-06: .gitignore aggiornato per logs/ e .dev_pids/.
