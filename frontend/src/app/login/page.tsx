@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Form } from 'react-bootstrap';
-import { FaGoogle, FaGithub } from 'react-icons/fa';
 import { useAuth } from '@/lib/AuthContext';
 import { authApi } from '@/lib/api';
 import StatusModal from '@/components/StatusModal';
@@ -24,14 +23,6 @@ export default function LoginPage() {
       router.push('/dashboard');
     }
   }, [user, loading, router]);
-
-  const handleGoogleLogin = () => {
-    window.location.href = authApi.getGoogleLoginUrl();
-  };
-
-  const handleGithubLogin = () => {
-    window.location.href = authApi.getGithubLoginUrl();
-  };
 
   const handleLocalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,27 +70,7 @@ export default function LoginPage() {
           }}
         />
 
-        <div className="d-grid gap-3">
-          <Button
-            variant="outline-primary"
-            size="lg"
-            onClick={handleGoogleLogin}
-            className="d-flex align-items-center justify-content-center gap-2"
-          >
-            <FaGoogle /> Accedi con Google
-          </Button>
-
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={handleGithubLogin}
-            className="d-flex align-items-center justify-content-center gap-2"
-          >
-            <FaGithub /> Accedi con GitHub
-          </Button>
-        </div>
-
-        <div className="my-4 text-muted">oppure</div>
+        <div className="my-4 text-muted" />
 
         <Form onSubmit={handleLocalSubmit} className="text-start">
           <Form.Group className="mb-3" controlId="email">
