@@ -293,7 +293,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="week-strip mb-3">
-        <Button variant="outline-primary" size="sm" onClick={handleThisWeek}>
+        <Button variant="outline-primary" size="sm" className="week-nav-btn" onClick={handleThisWeek}>
           Oggi
         </Button>
         {[-1, 0, 1].map((offset) => {
@@ -384,7 +384,8 @@ export default function DashboardPage() {
                     <div className="meal-bubble-header">
                       <div className="d-flex align-items-center gap-2">
                         <span className="meal-bubble-label">
-                          {mealType === 'pranzo' ? '☀️ Pranzo' : '🌙 Cena'}
+                          {mealType === 'pranzo' ? '☀️ Pranzo' : '🌙 Cena'} di{' '}
+                          {format(days[selectedDayIndex]?.date ?? today, 'EEEE d MMMM yyyy', { locale: it })}
                         </span>
                       </div>
                     </div>
