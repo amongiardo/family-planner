@@ -167,4 +167,6 @@ export const shoppingApi = {
       method: 'PUT',
       body: JSON.stringify({ week, checked }),
     }),
+  clear: (week: string) =>
+    fetchApi<{ success: boolean }>(`/api/shopping?week=${week}`, { method: 'DELETE' }),
 };

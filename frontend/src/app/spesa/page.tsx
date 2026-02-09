@@ -5,9 +5,9 @@ import { Card, Button, Form, ListGroup, Spinner, Row, Col } from 'react-bootstra
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaChevronLeft, FaChevronRight, FaCheck, FaShoppingCart, FaPlus } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaCheck, FaShoppingCart, FaPlus, FaTrash } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
-import { shoppingApi } from '@/lib/api';
+import { mealsApi, shoppingApi } from '@/lib/api';
 import { ShoppingListItem } from '@/types';
 import StatusModal from '@/components/StatusModal';
 
@@ -24,6 +24,11 @@ export default function SpesaPage() {
     queryFn: () => shoppingApi.get(weekString),
   });
 
+  const { data: weekMeals } = useQuery({
+    queryKey: ['meals', 'week', weekString],
+    queryFn: () => mealsApi.getWeek(weekString),
+  });
+
   const addItemMutation = useMutation({
     mutationFn: () =>
       shoppingApi.addItem({
@@ -38,9 +43,27 @@ export default function SpesaPage() {
     },
   });
 
+  const addQuickItemMutation = useMutation({
+    mutationFn: (ingredientName: string) =>
+      shoppingApi.addItem({
+        week: weekString,
+        ingredient: ingredientName,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shopping', weekString] });
+    },
+  });
+
   const checkItemMutation = useMutation({
     mutationFn: ({ itemId, checked }: { itemId: string; checked: boolean }) =>
       shoppingApi.checkItem(itemId, weekString, checked),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shopping', weekString] });
+    },
+  });
+
+  const clearListMutation = useMutation({
+    mutationFn: () => shoppingApi.clear(weekString),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shopping', weekString] });
     },
@@ -72,11 +95,73 @@ export default function SpesaPage() {
   const totalCount = items.length;
   const progress = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
 
+  const weeklyIngredients = (() => {
+    const map = new Map<string, number>();
+    (weekMeals || []).forEach((meal) => {
+      meal.dish?.ingredients?.forEach((ingredientName) => {
+        const key = ingredientName.trim();
+        if (!key) return;
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+    });
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  })();
+
   return (
     <DashboardLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="page-title">Lista della Spesa</h2>
+        <Button
+          variant="primary"
+          className="btn-danger-soft"
+          onClick={() => clearListMutation.mutate()}
+          disabled={clearListMutation.isPending}
+        >
+          {clearListMutation.isPending ? <Spinner size="sm" animation="border" /> : <><FaTrash className="me-2" /> Svuota Lista</>}
+        </Button>
       </div>
+
+      <Card className="mb-4">
+        <Card.Body>
+          <Row className="g-2 align-items-end">
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>Ingrediente</Form.Label>
+                <Form.Control
+                  value={ingredient}
+                  onChange={(e) => setIngredient(e.target.value)}
+                  className="placeholder-soft"
+                  placeholder="es: Latte, pane, pomodori..."
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Quantità (opzionale)</Form.Label>
+                <Form.Control
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="placeholder-soft"
+                  placeholder="es: 2 kg, 3 pz"
+                />
+              </Form.Group>
+            </Col>
+            <Col md={2} className="d-grid">
+              <Button variant="primary" onClick={handleAddItem} disabled={addItemMutation.isPending}>
+                {addItemMutation.isPending ? (
+                  <Spinner size="sm" animation="border" />
+                ) : (
+                  <>
+                    <FaPlus className="me-1" /> Aggiungi
+                  </>
+                )}
+              </Button>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
       <Card className="mb-4">
         <Card.Body>
@@ -117,118 +202,120 @@ export default function SpesaPage() {
         </Card.Body>
       </Card>
 
-      {isLoading ? (
-        <Card>
-          <Card.Body className="text-center py-5">
-            <Spinner animation="border" variant="success" />
-          </Card.Body>
-        </Card>
-      ) : error ? (
-        <>
-          <StatusModal
-            show={!dismissError}
-            variant="danger"
-            message="Errore nel caricamento della lista"
-            onClose={() => setDismissError(true)}
-          />
+      <Row className="g-4">
+        <Col lg={6}>
           <Card>
-            <Card.Body className="text-center py-5">
-              <p className="text-muted mb-0">Errore nel caricamento della lista</p>
+            <Card.Header>Ingredienti della settimana</Card.Header>
+            <Card.Body>
+              {weeklyIngredients.length === 0 ? (
+                <p className="text-muted mb-0">Nessun ingrediente dai pasti pianificati.</p>
+              ) : (
+                <ListGroup variant="flush">
+                  {weeklyIngredients.map((ingredientItem) => (
+                    <ListGroup.Item
+                      key={ingredientItem.name}
+                      className="d-flex align-items-center justify-content-between gap-3"
+                    >
+                      <div className="d-flex flex-column">
+                        <span>{ingredientItem.name}</span>
+                        {ingredientItem.count > 1 && (
+                          <small className="text-muted">x{ingredientItem.count}</small>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        className="btn-primary-soft"
+                        onClick={() => addQuickItemMutation.mutate(ingredientItem.name)}
+                        disabled={addQuickItemMutation.isPending}
+                      >
+                        <FaPlus className="me-1" /> Aggiungi
+                      </Button>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              )}
             </Card.Body>
           </Card>
-        </>
-      ) : items.length > 0 ? (
-        <Card>
-          <ListGroup variant="flush">
-            {items
-              .sort((a, b) => {
-                // Show unchecked first
-                if (a.checked !== b.checked) {
-                  return a.checked ? 1 : -1;
-                }
-                return a.ingredient.localeCompare(b.ingredient);
-              })
-              .map((item) => (
-                <ListGroup.Item
-                  key={item.id}
-                  className={`shopping-item d-flex align-items-center gap-3 ${
-                    item.checked ? 'checked' : ''
-                  }`}
-                >
-                  <Form.Check
-                    type="checkbox"
-                    checked={item.checked}
-                    onChange={() => handleToggleItem(item)}
-                    id={`item-${item.id}`}
-                  />
-                  <div className="flex-grow-1">
-                    <div className={item.checked ? 'text-decoration-line-through text-muted' : ''}>
-                      {item.ingredient}
-                      {item.quantity && (
-                        <span className="text-muted ms-2">({item.quantity})</span>
-                      )}
-                    </div>
-                    {item.dishNames.length > 0 && (
-                      <small className="text-muted">
-                        Per: {item.dishNames.join(', ')}
-                      </small>
-                    )}
-                  </div>
-                  {item.checked && <FaCheck className="text-success" />}
-                </ListGroup.Item>
-              ))}
-          </ListGroup>
-        </Card>
-      ) : (
-        <Card>
-          <Card.Body className="text-center py-5">
-            <FaShoppingCart size={48} className="text-muted mb-3" />
-            <p className="text-muted mb-0">
-              Nessun ingrediente nella lista per questa settimana.
-            </p>
-            <p className="text-muted small">
-              Aggiungi manualmente gli ingredienti da acquistare.
-            </p>
-          </Card.Body>
-        </Card>
-      )}
-      <Card className="mt-4">
-        <Card.Body>
-          <Row className="g-2 align-items-end">
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Ingrediente</Form.Label>
-                <Form.Control
-                  value={ingredient}
-                  onChange={(e) => setIngredient(e.target.value)}
-                  placeholder="Es. Latte, pane, pomodori..."
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Quantità (opzionale)</Form.Label>
-                <Form.Control
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  placeholder="Es. 2 kg, 3 pz"
-                />
-              </Form.Group>
-            </Col>
-            <Col md={2} className="d-grid">
-              <Button variant="primary" onClick={handleAddItem} disabled={addItemMutation.isPending}>
-                {addItemMutation.isPending ? (
-                  <Spinner size="sm" animation="border" />
-                ) : (
-                  <>
-                    <FaPlus className="me-1" /> Aggiungi
-                  </>
-                )}
-              </Button>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+        </Col>
+        <Col lg={6}>
+          {isLoading ? (
+            <Card>
+              <Card.Body className="text-center py-5">
+                <Spinner animation="border" variant="success" />
+              </Card.Body>
+            </Card>
+          ) : error ? (
+            <>
+              <StatusModal
+                show={!dismissError}
+                variant="danger"
+                message="Errore nel caricamento della lista"
+                onClose={() => setDismissError(true)}
+              />
+              <Card>
+                <Card.Body className="text-center py-5">
+                  <p className="text-muted mb-0">Errore nel caricamento della lista</p>
+                </Card.Body>
+              </Card>
+            </>
+          ) : items.length > 0 ? (
+            <Card>
+              <ListGroup variant="flush">
+                {items
+                  .sort((a, b) => {
+                    // Show unchecked first
+                    if (a.checked !== b.checked) {
+                      return a.checked ? 1 : -1;
+                    }
+                    return a.ingredient.localeCompare(b.ingredient);
+                  })
+                  .map((item) => (
+                    <ListGroup.Item
+                      key={item.id}
+                      className={`shopping-item d-flex align-items-center gap-3 ${
+                        item.checked ? 'checked' : ''
+                      }`}
+                    >
+                      <Form.Check
+                        type="checkbox"
+                        checked={item.checked}
+                        onChange={() => handleToggleItem(item)}
+                        id={`item-${item.id}`}
+                      />
+                      <div className="flex-grow-1">
+                        <div className={item.checked ? 'text-decoration-line-through text-muted' : ''}>
+                          {item.ingredient}
+                          {item.quantity && (
+                            <span className="text-muted ms-2">({item.quantity})</span>
+                          )}
+                        </div>
+                        {item.dishNames.length > 0 && (
+                          <small className="text-muted">
+                            Per: {item.dishNames.join(', ')}
+                          </small>
+                        )}
+                      </div>
+                      {item.checked && <FaCheck className="text-success" />}
+                    </ListGroup.Item>
+                  ))}
+              </ListGroup>
+            </Card>
+          ) : (
+            <Card>
+              <Card.Body className="text-center py-5">
+                <FaShoppingCart size={48} className="text-muted mb-3" />
+                <p className="text-muted mb-0">
+                  Nessun ingrediente nella lista per questa settimana.
+                </p>
+                <p className="text-muted small">
+                  Aggiungi manualmente gli ingredienti da acquistare.
+                </p>
+              </Card.Body>
+            </Card>
+          )}
+        </Col>
+      </Row>
     </DashboardLayout>
   );
 }

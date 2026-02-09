@@ -102,5 +102,6 @@ Changelog
 - 2026-02-06: Dashboard: box pranzo/cena mostrano anche la data del giorno selezionato.
 - 2026-02-06: Calendario: export PDF mese visibile (A4 orizzontale, una pagina, download diretto).
 - 2026-02-06: Impostazioni: list-group membri/inviti ora non sborda dai box.
+- 2026-02-06: Spesa: box ingredienti settimanali con aggiunta rapida, layout affiancato desktop.
 - 2026-02-06: Aggiunti asset prototipo (dashboard.png, screen_dashboard.png, v4-bubble-world.jsx, meal-planner-prototype.jsx, modal_example.webp) e rimosso vecchio /menu.
 - 2026-02-06: .gitignore aggiornato per logs/ e .dev_pids/.

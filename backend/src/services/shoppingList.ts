@@ -109,3 +109,21 @@ export async function updateItemCheckStatus(
 
   return items[itemIndex];
 }
+
+export async function clearShoppingList(familyId: string, weekStart: Date) {
+  const normalizedWeekStart = startOfWeek(weekStart, { weekStartsOn: 1 });
+
+  await prisma.shoppingList.update({
+    where: {
+      familyId_weekStart: {
+        familyId,
+        weekStart: normalizedWeekStart,
+      },
+    },
+    data: {
+      items: JSON.stringify([]),
+    },
+  });
+
+  return { success: true };
+}

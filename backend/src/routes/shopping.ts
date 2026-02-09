@@ -4,6 +4,7 @@ import {
   getOrCreateShoppingList,
   addShoppingItem,
   updateItemCheckStatus,
+  clearShoppingList,
 } from '../services/shoppingList';
 import { parseDateOnly } from '../utils/date';
 
@@ -82,6 +83,28 @@ router.put('/:itemId/check', isAuthenticated, async (req, res, next) => {
     const item = await updateItemCheckStatus(familyId, date, itemId, checked);
 
     res.json(item);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Clear shopping list items for a week
+router.delete('/', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const { week } = req.query;
+
+    if (!week || typeof week !== 'string') {
+      return res.status(400).json({ error: 'Week parameter is required (YYYY-MM-DD)' });
+    }
+
+    const date = parseDateOnly(week);
+    if (!date) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    const result = await clearShoppingList(familyId, date);
+    res.json(result);
   } catch (error) {
     next(error);
   }
