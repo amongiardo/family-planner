@@ -134,10 +134,13 @@ export const mealsApi = {
       body: JSON.stringify(data),
     }),
   autoSchedule: (data: { rangeType: string; slots?: { pranzo?: string[]; cena?: string[] } }) =>
-    fetchApi<{ success: boolean; created: number }>('/api/meals/auto-schedule', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    fetchApi<{ success: boolean; created: number; missing?: number; neededByCategory?: { primo: number; secondo: number; contorno: number } }>(
+      '/api/meals/auto-schedule',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    ),
 };
 
 // Suggestions

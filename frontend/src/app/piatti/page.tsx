@@ -55,6 +55,10 @@ export default function PiattiPage() {
     pranzo: { primo: true, secondo: true, contorno: true },
     cena: { primo: true, secondo: true, contorno: true },
   });
+  const [autoInsufficient, setAutoInsufficient] = useState<{
+    missing: number;
+    neededByCategory: { primo: number; secondo: number; contorno: number };
+  } | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
@@ -114,6 +118,13 @@ export default function PiattiPage() {
   const autoScheduleMutation = useMutation({
     mutationFn: mealsApi.autoSchedule,
     onSuccess: (data) => {
+      if (!data.success) {
+        setAutoInsufficient({
+          missing: data.missing ?? 0,
+          neededByCategory: data.neededByCategory ?? { primo: 0, secondo: 0, contorno: 0 },
+        });
+        return;
+      }
       setAutoStatus(`Auto-programmazione completata: ${data.created} pasti inseriti.`);
       queryClient.invalidateQueries({ queryKey: ['meals'] });
     },
@@ -385,7 +396,8 @@ export default function PiattiPage() {
                   <FaSearch />
                 </InputGroup.Text>
                 <Form.Control
-                  placeholder="Cerca piatti..."
+                  className="placeholder-soft"
+                  placeholder="es: Cerca piatti..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -505,9 +517,10 @@ export default function PiattiPage() {
               <Form.Label>Nome</Form.Label>
               <Form.Control
                 type="text"
+                className="placeholder-soft"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="es. Pasta al pomodoro"
+                placeholder="es: Pasta al pomodoro"
                 required
               />
             </Form.Group>
@@ -531,9 +544,10 @@ export default function PiattiPage() {
               <InputGroup className="mb-2">
                 <Form.Control
                   type="text"
+                  className="placeholder-soft"
                   value={newIngredient}
                   onChange={(e) => setNewIngredient(e.target.value)}
-                  placeholder="Aggiungi ingrediente"
+                  placeholder="es: Aggiungi ingrediente"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -798,6 +812,20 @@ export default function PiattiPage() {
         onConfirm={() => {
           setConfirmDeleteAll(false);
           deleteAllMutation.mutate();
+        }}
+      />
+
+      <ConfirmModal
+        show={Boolean(autoInsufficient)}
+        message={
+          autoInsufficient
+            ? `Non ci sono abbastanza combinazioni per rispettare 7 giorni di distanza. Servono almeno ${autoInsufficient.missing} nuovi piatti (primo: ${autoInsufficient.neededByCategory.primo}, secondo: ${autoInsufficient.neededByCategory.secondo}, contorno: ${autoInsufficient.neededByCategory.contorno}). Vuoi aggiungere nuovi piatti?`
+            : ''
+        }
+        onCancel={() => setAutoInsufficient(null)}
+        onConfirm={() => {
+          setAutoInsufficient(null);
+          handleOpenModal();
         }}
       />
     </DashboardLayout>

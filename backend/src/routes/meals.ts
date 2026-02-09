@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { DishCategory, MealType } from '@prisma/client';
-import { addDays, addMonths, addWeeks, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from 'date-fns';
+import { addDays, addMonths, addWeeks, differenceInCalendarDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from 'date-fns';
 import prisma from '../prisma';
 import { isAuthenticated, getFamilyId } from '../middleware/auth';
 import { parseDateOnly } from '../utils/date';
@@ -349,11 +349,11 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
         start = startOfWeek(today, { weekStartsOn: 1 });
         end = endOfWeek(today, { weekStartsOn: 1 });
         break;
+      }
     }
 
     start = normalizeDateOnly(start);
     end = normalizeDateOnly(end);
-    }
 
     const dishes = await prisma.dish.findMany({ where: { familyId } });
     if (dishes.length === 0) {
@@ -384,7 +384,28 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
       )
     );
 
-    const lastUsed = new Map<string, string>();
+    const lookbackStart = subDays(start, 6);
+    const history = await prisma.mealPlan.findMany({
+      where: {
+        familyId,
+        date: { gte: lookbackStart, lte: end },
+      },
+      include: { dish: true },
+    });
+
+    const lastUsed = new Map<string, Date>();
+    const usedByDate = new Map<string, Set<string>>();
+    history.forEach((meal) => {
+      const dateKey = format(new Date(meal.date), 'yyyy-MM-dd');
+      if (!usedByDate.has(dateKey)) usedByDate.set(dateKey, new Set());
+      usedByDate.get(dateKey)!.add(meal.dishId);
+      const prev = lastUsed.get(meal.dishId);
+      const currentDate = new Date(meal.date);
+      if (!prev || currentDate > prev) {
+        lastUsed.set(meal.dishId, currentDate);
+      }
+    });
+
     const indexByKey = new Map<string, number>();
 
     console.log('AUTO-SCHEDULE RANGE', {
@@ -393,52 +414,86 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
       end: format(end, 'yyyy-MM-dd'),
     });
 
-    const created: number = await prisma.$transaction(async (tx) => {
-      let count = 0;
-      for (let d = new Date(start); d <= end; d = normalizeDateOnly(addDays(d, 1))) {
-        const dateKey = format(d, 'yyyy-MM-dd');
-        const dateForDb = parseDateOnly(dateKey)!;
-        for (const mealType of ['pranzo', 'cena'] as MealType[]) {
-          const slotList = slotsByMeal[mealType];
-          for (const slotCategory of slotList) {
-            const key = `${dateKey}|${mealType}|${slotCategory}`;
-            if (existingKey.has(key)) continue;
+    const planned: Array<{ date: Date; mealType: MealType; slotCategory: DishCategory; dishId: string }> =
+      [];
+    const neededByCategory: Record<DishCategory, number> = {
+      primo: 0,
+      secondo: 0,
+      contorno: 0,
+    };
+    let missing = 0;
 
-            const list = dishesByCategory[slotCategory];
-            if (list.length === 0) continue;
+    for (let d = new Date(start); d <= end; d = normalizeDateOnly(addDays(d, 1))) {
+      const dateKey = format(d, 'yyyy-MM-dd');
+      const dayUsed = new Set(usedByDate.get(dateKey) ?? []);
+      for (const mealType of ['pranzo', 'cena'] as MealType[]) {
+        const slotList = slotsByMeal[mealType];
+        for (const slotCategory of slotList) {
+          const key = `${dateKey}|${mealType}|${slotCategory}`;
+          if (existingKey.has(key)) continue;
 
-            const cycleKey = `${mealType}|${slotCategory}`;
-            let idx = indexByKey.get(cycleKey) ?? 0;
-            let dish = list[idx % list.length];
-
-            if (list.length > 1) {
-              const last = lastUsed.get(cycleKey);
-              if (dish.id === last) {
-                idx += 1;
-                dish = list[idx % list.length];
-              }
-            }
-
-            indexByKey.set(cycleKey, idx + 1);
-            lastUsed.set(cycleKey, dish.id);
-
-            await tx.mealPlan.create({
-              data: {
-                familyId,
-                date: dateForDb,
-                mealType,
-                slotCategory,
-                dishId: dish.id,
-              },
-            });
-            count += 1;
+          const list = dishesByCategory[slotCategory];
+          if (list.length === 0) {
+            missing += 1;
+            neededByCategory[slotCategory] += 1;
+            continue;
           }
+
+          const cycleKey = `${mealType}|${slotCategory}`;
+          let idx = indexByKey.get(cycleKey) ?? 0;
+          let chosen: { id: string } | null = null;
+
+          for (let i = 0; i < list.length; i++) {
+            const candidate = list[(idx + i) % list.length];
+            if (dayUsed.has(candidate.id)) continue;
+            const lastDate = lastUsed.get(candidate.id);
+            if (lastDate && differenceInCalendarDays(d, lastDate) < 7) continue;
+            chosen = candidate;
+            idx = idx + i + 1;
+            break;
+          }
+
+          if (!chosen) {
+            missing += 1;
+            neededByCategory[slotCategory] += 1;
+            continue;
+          }
+
+          indexByKey.set(cycleKey, idx);
+          dayUsed.add(chosen.id);
+          lastUsed.set(chosen.id, d);
+          planned.push({
+            date: parseDateOnly(dateKey)!,
+            mealType,
+            slotCategory,
+            dishId: chosen.id,
+          });
         }
       }
-      return count;
+    }
+
+    if (missing > 0) {
+      return res.json({ success: false, created: 0, missing, neededByCategory });
+    }
+
+    const created = await prisma.$transaction(async (tx) => {
+      const createdMeals = await Promise.all(
+        planned.map((data) =>
+          tx.mealPlan.create({
+            data: {
+              familyId,
+              date: data.date,
+              mealType: data.mealType,
+              slotCategory: data.slotCategory,
+              dishId: data.dishId,
+            },
+          })
+        )
+      );
+      return createdMeals.length;
     });
 
-    res.json({ success: true, created });
+    res.json({ success: true, created, missing: 0, neededByCategory });
   } catch (error) {
     next(error);
   }
