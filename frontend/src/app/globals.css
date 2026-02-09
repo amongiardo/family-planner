@@ -901,6 +901,92 @@ body::after {
   z-index: 1;
 }
 
+.calendar-export-wrapper {
+  position: fixed;
+  left: -99999px;
+  top: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.calendar-export {
+  width: 1123px;
+  min-height: 794px;
+  padding: 24px;
+  background: #ffffff;
+  color: #2f243d;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+
+.calendar-export-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.calendar-export-title {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.calendar-export-subtitle {
+  font-size: 13px;
+  color: #6c5a85;
+  text-transform: capitalize;
+}
+
+.calendar-export-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.calendar-export-head {
+  background: #f1ebfb;
+  border: 1px solid #e0d6f0;
+  border-radius: 10px;
+  padding: 6px 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.calendar-export-cell {
+  min-height: 110px;
+  border: 1px solid #e0d6f0;
+  border-radius: 12px;
+  padding: 8px;
+  background: #faf8ff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calendar-export-cell.is-outside {
+  opacity: 0.45;
+  background: #f6f2fb;
+}
+
+.calendar-export-date {
+  font-weight: 700;
+  font-size: 12px;
+  color: #4d3b66;
+}
+
+.calendar-export-line {
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: #3a2f4f;
+}
+
+.calendar-export-label {
+  font-weight: 700;
+  color: #7d5ba6;
+  margin-right: 4px;
+}
+
 .app-modal .modal-header,
 .app-modal .modal-footer {
   border: none;

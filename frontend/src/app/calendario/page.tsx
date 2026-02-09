@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { Card, Modal, Form, Badge, Spinner, Row, Col, Button } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { format, subDays } from 'date-fns';
+import { addDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek, subDays } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaFilePdf } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, dishesApi } from '@/lib/api';
 import { MealType, DishCategory } from '@/types';
@@ -30,6 +30,12 @@ export default function CalendarioPage() {
   const [showClearModal, setShowClearModal] = useState(false);
   const [showClearRangeModal, setShowClearRangeModal] = useState(false);
   const [clearRange, setClearRange] = useState('this_week');
+  const [currentMonthAnchor, setCurrentMonthAnchor] = useState<Date>(new Date());
+  const [exportMeals, setExportMeals] = useState<MealPlan[] | null>(null);
+  const [exportRange, setExportRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const exportRef = useRef<HTMLDivElement | null>(null);
+  const calendarRef = useRef<FullCalendar | null>(null);
 
   const toDateOnly = useCallback((value: string) => value.split('T')[0], []);
   const toLocalDate = useCallback((value: string) => new Date(`${toDateOnly(value)}T00:00:00`), [
@@ -249,8 +255,112 @@ export default function CalendarioPage() {
     );
   };
 
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const exportMealsByDate = useMemo(() => {
+    const map = new Map<string, MealPlan[]>();
+    (exportMeals ?? []).forEach((meal) => {
+      const key = toDateOnly(meal.date);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(meal);
+    });
+    return map;
+  }, [exportMeals, toDateOnly]);
+
+  const exportDays = useMemo(() => {
+    if (!exportRange) return [];
+    const start = startOfWeek(exportRange.start, { weekStartsOn: 1 });
+    const end = endOfWeek(exportRange.end, { weekStartsOn: 1 });
+    const days: Date[] = [];
+    for (let d = start; d <= end; d = addDays(d, 1)) {
+      days.push(d);
+    }
+    return days;
+  }, [exportRange]);
+
+  const renderExportMealLine = (dateKey: string, mealType: MealType) => {
+    const slotOrder: DishCategory[] = ['primo', 'secondo', 'contorno'];
+    const dailyMeals = exportMealsByDate.get(dateKey) ?? [];
+    const parts = slotOrder.map((slot) => {
+      const found = dailyMeals.find(
+        (meal) => meal.mealType === mealType && meal.slotCategory === slot
+      );
+      return found?.dish?.name ?? '—';
+    });
+    return parts.map(escapeHtml).join(' · ');
+  };
+
+  const waitForNextPaint = () =>
+    new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+
+  const handleExportPdf = async () => {
+    try {
+      setExportError(null);
+      const anchor = calendarRef.current?.getApi().getDate() ?? currentMonthAnchor;
+      const monthStart = startOfMonth(anchor);
+      const monthEnd = endOfMonth(anchor);
+      const monthMeals = await mealsApi.getRange(
+        format(monthStart, 'yyyy-MM-dd'),
+        format(monthEnd, 'yyyy-MM-dd')
+      );
+
+      setExportRange({ start: monthStart, end: monthEnd });
+      setExportMeals(monthMeals);
+
+      await waitForNextPaint();
+      await waitForNextPaint();
+
+      if (!exportRef.current) return;
+
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+
+      const canvas = await html2canvas(exportRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgProps = pdf.getImageProperties(imgData);
+      const ratio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
+      const imgWidth = imgProps.width * ratio;
+      const imgHeight = imgProps.height * ratio;
+      const x = (pdfWidth - imgWidth) / 2;
+      const y = (pdfHeight - imgHeight) / 2;
+
+      pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+      pdf.save(`family_planner_calendario_${format(monthStart, 'yyyyMM')}.pdf`);
+    } catch (err: any) {
+      setExportError(err?.message || 'Impossibile esportare il PDF');
+    }
+  };
+
   return (
     <DashboardLayout>
+      <StatusModal
+        show={Boolean(exportError)}
+        variant="danger"
+        message={exportError || ''}
+        onClose={() => setExportError(null)}
+      />
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div className="d-flex align-items-center gap-2">
           <h2 className="page-title mb-0">Calendario Pasti</h2>
@@ -259,6 +369,9 @@ export default function CalendarioPage() {
           )}
         </div>
         <div className="d-flex gap-2 flex-wrap">
+          <Button variant="outline-primary" className="btn-primary-soft" onClick={handleExportPdf}>
+            <FaFilePdf className="me-2" /> Esporta PDF
+          </Button>
           <Button variant="primary" className="btn-danger-soft" onClick={() => setShowClearRangeModal(true)}>
             Svuota Intervallo
           </Button>
@@ -277,6 +390,7 @@ export default function CalendarioPage() {
               </div>
             )}
             <FullCalendar
+              ref={calendarRef}
               plugins={[dayGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
               locale="it"
@@ -296,6 +410,7 @@ export default function CalendarioPage() {
                 const start = format(dateInfo.start, 'yyyy-MM-dd');
                 const end = format(subDays(dateInfo.end, 1), 'yyyy-MM-dd');
                 setVisibleRange({ start, end });
+                setCurrentMonthAnchor(dateInfo.view?.currentStart ?? dateInfo.start);
               }}
               eventClick={(info) => {
                 const meal = meals?.find((m) => m.id === info.event.id);
@@ -311,6 +426,59 @@ export default function CalendarioPage() {
           </div>
         </Card.Body>
       </Card>
+
+      <div className="calendar-export-wrapper" aria-hidden="true">
+        <div ref={exportRef} className="calendar-export">
+          {exportRange && (
+            <>
+              <div className="calendar-export-header">
+                <div className="calendar-export-title">Calendario Pasti</div>
+                <div className="calendar-export-subtitle">
+                  {format(exportRange.start, 'MMMM yyyy', { locale: it })}
+                </div>
+              </div>
+              <div className="calendar-export-grid">
+                {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day) => (
+                  <div key={day} className="calendar-export-head">
+                    {day}
+                  </div>
+                ))}
+                {exportDays.map((day) => {
+                  const dateKey = format(day, 'yyyy-MM-dd');
+                  const outside =
+                    format(day, 'yyyy-MM') !== format(exportRange.start, 'yyyy-MM');
+                  return (
+                    <div
+                      key={dateKey}
+                      className={`calendar-export-cell ${outside ? 'is-outside' : ''}`}
+                    >
+                      <div className="calendar-export-date">
+                        {format(day, 'd', { locale: it })}
+                      </div>
+                      <div className="calendar-export-line">
+                        <span className="calendar-export-label">Pranzo:</span>
+                        <span
+                          dangerouslySetInnerHTML={{
+                            __html: renderExportMealLine(dateKey, 'pranzo'),
+                          }}
+                        />
+                      </div>
+                      <div className="calendar-export-line">
+                        <span className="calendar-export-label">Cena:</span>
+                        <span
+                          dangerouslySetInnerHTML={{
+                            __html: renderExportMealLine(dateKey, 'cena'),
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
 
       <Modal show={showModal} onHide={handleCloseModal} size="lg">
         <Modal.Header closeButton>
