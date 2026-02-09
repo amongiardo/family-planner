@@ -167,6 +167,15 @@ export const shoppingApi = {
       method: 'PUT',
       body: JSON.stringify({ week, checked }),
     }),
+  removeItem: (itemId: string, week: string) =>
+    fetchApi<{ success: boolean }>(`/api/shopping/items/${itemId}?week=${week}`, {
+      method: 'DELETE',
+    }),
   clear: (week: string) =>
     fetchApi<{ success: boolean }>(`/api/shopping?week=${week}`, { method: 'DELETE' }),
+  clearAll: () => fetchApi<{ success: boolean }>(`/api/shopping/all`, { method: 'DELETE' }),
+  clearPurchased: () =>
+    fetchApi<{ success: boolean }>(`/api/shopping/purchased`, { method: 'DELETE' }),
+  clearPending: () =>
+    fetchApi<{ success: boolean }>(`/api/shopping/pending`, { method: 'DELETE' }),
 };

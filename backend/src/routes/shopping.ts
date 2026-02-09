@@ -5,6 +5,10 @@ import {
   addShoppingItem,
   updateItemCheckStatus,
   clearShoppingList,
+  removeShoppingItem,
+  clearAllShoppingLists,
+  clearPurchasedItems,
+  clearPendingItems,
 } from '../services/shoppingList';
 import { parseDateOnly } from '../utils/date';
 
@@ -88,6 +92,29 @@ router.put('/:itemId/check', isAuthenticated, async (req, res, next) => {
   }
 });
 
+// Remove item from list
+router.delete('/items/:itemId', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const { itemId } = req.params;
+    const { week } = req.query;
+
+    if (!week || typeof week !== 'string') {
+      return res.status(400).json({ error: 'Week parameter is required (YYYY-MM-DD)' });
+    }
+
+    const date = parseDateOnly(week);
+    if (!date) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    const result = await removeShoppingItem(familyId, date, itemId);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Clear shopping list items for a week
 router.delete('/', isAuthenticated, async (req, res, next) => {
   try {
@@ -104,6 +131,39 @@ router.delete('/', isAuthenticated, async (req, res, next) => {
     }
 
     const result = await clearShoppingList(familyId, date);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Clear all shopping lists for family
+router.delete('/all', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const result = await clearAllShoppingLists(familyId);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Clear purchased items across all lists
+router.delete('/purchased', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const result = await clearPurchasedItems(familyId);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Clear pending (unchecked) items across all lists
+router.delete('/pending', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const result = await clearPendingItems(familyId);
     res.json(result);
   } catch (error) {
     next(error);

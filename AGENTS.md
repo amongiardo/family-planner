@@ -48,5 +48,5 @@ Quando si lavora con più sessioni Codex in parallelo:
 - Non includere file non correlati.
 - Aggiorna sempre `infoForCodex.txt` e `AGENTS.md` con lo stato corrente prima di ogni commit.
 
-Ultimo aggiornamento: 2026-02-06 (spesa: box ingredienti settimanali)
+Ultimo aggiornamento: 2026-02-06 (spesa: ingredienti e comprati)
 </INSTRUCTIONS>

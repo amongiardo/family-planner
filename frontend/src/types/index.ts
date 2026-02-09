@@ -64,6 +64,7 @@ export interface ShoppingListItem {
   quantity?: string;
   checked: boolean;
   dishNames: string[];
+  purchasedAt?: string | null;
 }
 
 export interface ShoppingList {
@@ -79,5 +80,6 @@ export interface FamilyInvite {
   email: string;
   expiresAt: string;
   createdAt: string;
+  token?: string;
   inviteUrl?: string;
 }

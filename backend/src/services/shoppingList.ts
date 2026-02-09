@@ -94,6 +94,7 @@ export async function updateItemCheckStatus(
   }
 
   items[itemIndex].checked = checked;
+  items[itemIndex].purchasedAt = checked ? new Date().toISOString() : null;
 
   await prisma.shoppingList.update({
     where: {
@@ -124,6 +125,109 @@ export async function clearShoppingList(familyId: string, weekStart: Date) {
       items: JSON.stringify([]),
     },
   });
+
+  return { success: true };
+}
+
+export async function removeShoppingItem(
+  familyId: string,
+  weekStart: Date,
+  itemId: string
+) {
+  const normalizedWeekStart = startOfWeek(weekStart, { weekStartsOn: 1 });
+
+  const shoppingList = await prisma.shoppingList.findUnique({
+    where: {
+      familyId_weekStart: {
+        familyId,
+        weekStart: normalizedWeekStart,
+      },
+    },
+  });
+
+  if (!shoppingList) {
+    throw new Error('Shopping list not found');
+  }
+
+  const items = JSON.parse(shoppingList.items as string) as ShoppingListItem[];
+  const nextItems = items.filter((item) => item.id !== itemId);
+
+  await prisma.shoppingList.update({
+    where: {
+      familyId_weekStart: {
+        familyId,
+        weekStart: normalizedWeekStart,
+      },
+    },
+    data: {
+      items: JSON.stringify(nextItems),
+    },
+  });
+
+  return { success: true };
+}
+
+export async function clearAllShoppingLists(familyId: string) {
+  await prisma.shoppingList.updateMany({
+    where: {
+      familyId,
+    },
+    data: {
+      items: JSON.stringify([]),
+    },
+  });
+
+  return { success: true };
+}
+
+export async function clearPurchasedItems(familyId: string) {
+  const lists = await prisma.shoppingList.findMany({
+    where: { familyId },
+  });
+
+  for (const list of lists) {
+    const items = JSON.parse(list.items as string) as ShoppingListItem[];
+    const nextItems = items.filter((item) => !item.checked);
+    if (nextItems.length !== items.length) {
+      await prisma.shoppingList.update({
+        where: {
+          familyId_weekStart: {
+            familyId,
+            weekStart: list.weekStart,
+          },
+        },
+        data: {
+          items: JSON.stringify(nextItems),
+        },
+      });
+    }
+  }
+
+  return { success: true };
+}
+
+export async function clearPendingItems(familyId: string) {
+  const lists = await prisma.shoppingList.findMany({
+    where: { familyId },
+  });
+
+  for (const list of lists) {
+    const items = JSON.parse(list.items as string) as ShoppingListItem[];
+    const nextItems = items.filter((item) => item.checked);
+    if (nextItems.length !== items.length) {
+      await prisma.shoppingList.update({
+        where: {
+          familyId_weekStart: {
+            familyId,
+            weekStart: list.weekStart,
+          },
+        },
+        data: {
+          items: JSON.stringify(nextItems),
+        },
+      });
+    }
+  }
 
   return { success: true };
 }
