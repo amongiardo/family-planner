@@ -28,7 +28,7 @@ export default function StatusModal({
       <Modal.Header closeButton>
         <Modal.Title>{title || variantTitle[variant]}</Modal.Title>
       </Modal.Header>
-      <Modal.Body>{message}</Modal.Body>
+      <Modal.Body className="text-center">{message}</Modal.Body>
       <Modal.Footer>
         <Button variant="primary" onClick={onClose}>
           Ok

@@ -48,6 +48,14 @@ export interface MealPlan {
   createdAt: string;
 }
 
+export interface MealOut {
+  id: string;
+  familyId: string;
+  date: string;
+  mealType: MealType;
+  createdAt: string;
+}
+
 export interface Suggestion {
   dish: {
     id: string;

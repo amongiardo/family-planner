@@ -117,12 +117,14 @@ router.post('/local/login', async (req, res, next) => {
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !user.passwordHash) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res
+        .status(401)
+        .json({ error: "Utente non trovato. Registrati per continuare." });
     }
 
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Credenziali non valide' });
     }
 
     req.login(user, (err) => {

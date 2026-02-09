@@ -11,7 +11,7 @@ import { it } from 'date-fns/locale';
 import { FaTrash, FaFilePdf } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, dishesApi } from '@/lib/api';
-import { MealType, DishCategory } from '@/types';
+import { MealType, DishCategory, MealOut, MealPlan } from '@/types';
 import StatusModal from '@/components/StatusModal';
 import ConfirmModal from '@/components/ConfirmModal';
 
@@ -36,6 +36,22 @@ export default function CalendarioPage() {
   const [exportError, setExportError] = useState<string | null>(null);
   const exportRef = useRef<HTMLDivElement | null>(null);
   const calendarRef = useRef<FullCalendar | null>(null);
+  const [draftSlots, setDraftSlots] = useState<{
+    pranzo: Record<DishCategory, string>;
+    cena: Record<DishCategory, string>;
+  }>({
+    pranzo: { primo: '', secondo: '', contorno: '' },
+    cena: { primo: '', secondo: '', contorno: '' },
+  });
+  const [draftOut, setDraftOut] = useState<{ pranzo: boolean; cena: boolean }>({
+    pranzo: false,
+    cena: false,
+  });
+  const [draftBackup, setDraftBackup] = useState<{
+    pranzo: Record<DishCategory, string> | null;
+    cena: Record<DishCategory, string> | null;
+  }>({ pranzo: null, cena: null });
+  const [savingDraft, setSavingDraft] = useState(false);
 
   const toDateOnly = useCallback((value: string) => value.split('T')[0], []);
   const toLocalDate = useCallback((value: string) => new Date(`${toDateOnly(value)}T00:00:00`), [
@@ -49,6 +65,12 @@ export default function CalendarioPage() {
     enabled: Boolean(visibleRange.start && visibleRange.end),
     placeholderData: (previous) => previous,
     staleTime: 30000,
+  });
+
+  const { data: mealOuts } = useQuery({
+    queryKey: ['mealOuts', visibleRange.start, visibleRange.end],
+    queryFn: () => mealsApi.getOutRange(visibleRange.start, visibleRange.end),
+    enabled: Boolean(visibleRange.start && visibleRange.end),
   });
 
   const { data: dishes } = useQuery({
@@ -84,6 +106,24 @@ export default function CalendarioPage() {
     mutationFn: mealsApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meals'] });
+    },
+  });
+
+  const setOutMutation = useMutation({
+    mutationFn: ({ date, mealType }: { date: string; mealType: MealType }) =>
+      mealsApi.setOut({ date, mealType }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+      queryClient.invalidateQueries({ queryKey: ['mealOuts'] });
+    },
+  });
+
+  const removeOutMutation = useMutation({
+    mutationFn: ({ date, mealType }: { date: string; mealType: MealType }) =>
+      mealsApi.removeOut({ date, mealType }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+      queryClient.invalidateQueries({ queryKey: ['mealOuts'] });
     },
   });
 
@@ -129,7 +169,7 @@ export default function CalendarioPage() {
       return slotOrder[a.slotCategory] - slotOrder[b.slotCategory];
     });
 
-    return sorted.map((meal) => ({
+    const mealEvents = sorted.map((meal) => ({
       id: meal.id,
       title: `${meal.mealType === 'pranzo' ? 'Pranzo' : 'Cena'} · ${meal.slotCategory}: ${meal.dish.name}`,
       start: toDateOnly(meal.date),
@@ -144,12 +184,31 @@ export default function CalendarioPage() {
       backgroundColor: meal.mealType === 'pranzo' ? '#f39c12' : '#9b59b6',
       borderColor: meal.mealType === 'pranzo' ? '#f39c12' : '#9b59b6',
     }));
-  }, [meals]);
+
+    const outEvents =
+      mealOuts?.map((out) => ({
+        id: `out-${out.id}`,
+        title: out.mealType === 'pranzo' ? 'Pranzo fuori' : 'Cena fuori',
+        start: format(new Date(out.date), 'yyyy-MM-dd'),
+        startTime: out.mealType === 'pranzo' ? '0' : '1',
+        allDay: true,
+        extendedProps: {
+          isOut: true,
+          mealType: out.mealType,
+          outId: out.id,
+        },
+        backgroundColor: '#64748b',
+        borderColor: '#64748b',
+      })) ?? [];
+
+    return [...mealEvents, ...outEvents];
+  }, [meals, mealOuts]);
 
   const handleDateClick = (arg: { date: Date; dateStr: string }) => {
     setSelectedDateStr(arg.dateStr);
     setSelectedDate(toLocalDateFromDateOnly(arg.dateStr));
     setError('');
+    initDraft(arg.dateStr);
     setShowModal(true);
   };
 
@@ -158,6 +217,7 @@ export default function CalendarioPage() {
     setSelectedDate(null);
     setSelectedDateStr(null);
     setError('');
+    setDraftBackup({ pranzo: null, cena: null });
   };
 
   const updateMutation = useMutation({
@@ -173,6 +233,111 @@ export default function CalendarioPage() {
 
   const handleDeleteMeal = (mealId: string) => {
     setPendingDeleteId(mealId);
+  };
+
+  const getMealOut = (dateStr: string, mealType: MealType) =>
+    mealOuts?.find(
+      (out) => format(new Date(out.date), 'yyyy-MM-dd') === dateStr && out.mealType === mealType
+    );
+
+  const initDraft = (dateStr: string) => {
+    const baseSlots = {
+      pranzo: { primo: '', secondo: '', contorno: '' } as Record<DishCategory, string>,
+      cena: { primo: '', secondo: '', contorno: '' } as Record<DishCategory, string>,
+    };
+    (['pranzo', 'cena'] as MealType[]).forEach((mealType) => {
+      (['primo', 'secondo', 'contorno'] as DishCategory[]).forEach((slot) => {
+        const meal = getMealBySlot(dateStr, mealType, slot);
+        if (meal) {
+          baseSlots[mealType][slot] = meal.dishId;
+        }
+      });
+    });
+    setDraftSlots(baseSlots);
+    setDraftOut({
+      pranzo: Boolean(getMealOut(dateStr, 'pranzo')),
+      cena: Boolean(getMealOut(dateStr, 'cena')),
+    });
+    setDraftBackup({ pranzo: null, cena: null });
+  };
+
+  const handleDraftSlotChange = (
+    mealType: MealType,
+    slotCategory: DishCategory,
+    dishId: string
+  ) => {
+    setDraftSlots((prev) => ({
+      ...prev,
+      [mealType]: { ...prev[mealType], [slotCategory]: dishId },
+    }));
+  };
+
+  const handleToggleOutDraft = (mealType: MealType, enabled: boolean) => {
+    if (enabled) {
+      setDraftBackup((prev) => ({
+        ...prev,
+        [mealType]: { ...draftSlots[mealType] },
+      }));
+      setDraftSlots((prev) => ({
+        ...prev,
+        [mealType]: { primo: '', secondo: '', contorno: '' },
+      }));
+      setDraftOut((prev) => ({ ...prev, [mealType]: true }));
+      return;
+    }
+    setDraftOut((prev) => ({ ...prev, [mealType]: false }));
+    if (draftBackup[mealType]) {
+      setDraftSlots((prev) => ({
+        ...prev,
+        [mealType]: { ...(draftBackup[mealType] as Record<DishCategory, string>) },
+      }));
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!selectedDateStr) return;
+    setSavingDraft(true);
+    setError('');
+    try {
+      for (const mealType of ['pranzo', 'cena'] as MealType[]) {
+        const hasOut = Boolean(getMealOut(selectedDateStr, mealType));
+        if (draftOut[mealType]) {
+          await mealsApi.setOut({ date: selectedDateStr, mealType });
+        } else if (hasOut) {
+          await mealsApi.removeOut({ date: selectedDateStr, mealType });
+        }
+
+        if (draftOut[mealType]) continue;
+
+        for (const slotCategory of slotCategories) {
+          const existing = getMealBySlot(selectedDateStr, mealType, slotCategory);
+          const draftDishId = draftSlots[mealType][slotCategory];
+          if (!draftDishId && existing) {
+            await mealsApi.delete(existing.id);
+            continue;
+          }
+          if (draftDishId && !existing) {
+            await mealsApi.create({
+              date: selectedDateStr,
+              mealType,
+              slotCategory,
+              dishId: draftDishId,
+            });
+            continue;
+          }
+          if (draftDishId && existing && existing.dishId !== draftDishId) {
+            await mealsApi.update(existing.id, { dishId: draftDishId });
+          }
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+      queryClient.invalidateQueries({ queryKey: ['mealOuts'] });
+      setShowModal(false);
+    } catch (err: any) {
+      setError(err?.message || 'Impossibile salvare le modifiche');
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
   const getCategoryBadgeClass = (category: string) => {
@@ -234,18 +399,27 @@ export default function CalendarioPage() {
   };
 
   const eventContent = (eventInfo: any) => {
-    const { mealType, slotCategory, dish } = eventInfo.event.extendedProps;
+    const { mealType, slotCategory, dish, isOut } = eventInfo.event.extendedProps;
     return (
       <div className="p-1 d-flex align-items-center justify-content-between gap-2">
         <small className="d-block text-truncate">
-          {mealType === 'pranzo' ? '🌞' : '🌙'} {slotCategory}: {dish?.name || eventInfo.event.title}
+          {isOut
+            ? `${mealType === 'pranzo' ? '🌞' : '🌙'} ${eventInfo.event.title}`
+            : `${mealType === 'pranzo' ? '🌞' : '🌙'} ${slotCategory}: ${dish?.name || eventInfo.event.title}`}
         </small>
         <button
           type="button"
           className="calendar-event-delete"
           onClick={(e) => {
             e.stopPropagation();
-            handleDeleteMeal(eventInfo.event.id);
+            if (isOut) {
+              removeOutMutation.mutate({
+                date: format(new Date(eventInfo.event.start), 'yyyy-MM-dd'),
+                mealType,
+              });
+            } else {
+              handleDeleteMeal(eventInfo.event.id);
+            }
           }}
           aria-label="Rimuovi"
         >
@@ -413,12 +587,22 @@ export default function CalendarioPage() {
                 setCurrentMonthAnchor(dateInfo.view?.currentStart ?? dateInfo.start);
               }}
               eventClick={(info) => {
+                if (info.event.extendedProps?.isOut) {
+                  const dateStr = format(new Date(info.event.start), 'yyyy-MM-dd');
+                  setSelectedDateStr(dateStr);
+                  setSelectedDate(toLocalDateFromDateOnly(dateStr));
+                  setError('');
+                  initDraft(dateStr);
+                  setShowModal(true);
+                  return;
+                }
                 const meal = meals?.find((m) => m.id === info.event.id);
                 if (meal) {
                   const dateStr = toDateOnly(meal.date);
                   setSelectedDateStr(dateStr);
                   setSelectedDate(toLocalDateFromDateOnly(dateStr));
                   setError('');
+                  initDraft(dateStr);
                   setShowModal(true);
                 }
               }}
@@ -504,8 +688,13 @@ export default function CalendarioPage() {
                         {mealType === 'pranzo' ? '☀️ Pranzo' : '🌙 Cena'}
                       </Card.Title>
                       <div className="d-flex flex-column gap-3">
+                        {selectedDateStr && draftOut[mealType] && (
+                          <div className="text-muted small">
+                            {mealType === 'pranzo' ? 'Pranzo fuori impostato.' : 'Cena fuori impostata.'}
+                          </div>
+                        )}
                         {slotCategories.map((slot) => {
-                          const meal = getMealBySlot(selectedDateStr, mealType, slot);
+                          const isOut = draftOut[mealType];
                           return (
                             <div
                               key={`${mealType}-${slot}`}
@@ -515,10 +704,11 @@ export default function CalendarioPage() {
                                 <Badge className={getCategoryBadgeClass(slot)}>{slot}</Badge>
                               </span>
                               <Form.Select
-                                value={meal?.dishId || ''}
+                                value={draftSlots[mealType][slot]}
                                 onChange={(e) =>
-                                  handleSlotChange(selectedDateStr, mealType, slot, e.target.value)
+                                  handleDraftSlotChange(mealType, slot, e.target.value)
                                 }
+                                disabled={isOut}
                               >
                                 <option value="">Seleziona {slot}...</option>
                                 {dishesByCategory[slot].map((dish) => (
@@ -527,9 +717,39 @@ export default function CalendarioPage() {
                                   </option>
                                 ))}
                               </Form.Select>
+                              <Button
+                                size="sm"
+                                variant="outline-danger"
+                                className="btn-danger-soft"
+                                onClick={() => handleDraftSlotChange(mealType, slot, '')}
+                                disabled={!draftSlots[mealType][slot] || isOut}
+                              >
+                                Rimuovi
+                              </Button>
                             </div>
                           );
                         })}
+                        <div className="d-flex justify-content-end">
+                          {selectedDateStr && draftOut[mealType] ? (
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              className="btn-danger-soft"
+                              onClick={() => handleToggleOutDraft(mealType, false)}
+                            >
+                              Annulla {mealType === 'pranzo' ? 'Pranzo fuori' : 'Cena fuori'}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="info"
+                              className="btn-info-soft"
+                              onClick={() => handleToggleOutDraft(mealType, true)}
+                            >
+                              {mealType === 'pranzo' ? 'Pranzo fuori' : 'Cena fuori'}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </Card.Body>
                   </Card>
@@ -539,6 +759,14 @@ export default function CalendarioPage() {
           </Col>
         </Row>
       </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={handleCloseModal} disabled={savingDraft}>
+          Annulla
+        </Button>
+        <Button variant="primary" onClick={handleSaveDraft} disabled={savingDraft}>
+          {savingDraft ? <Spinner size="sm" animation="border" /> : 'Ok'}
+        </Button>
+      </Modal.Footer>
       </Modal>
 
       <ConfirmModal

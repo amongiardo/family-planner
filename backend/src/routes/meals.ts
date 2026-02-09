@@ -406,6 +406,13 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
       }
     });
 
+    const outs = await prisma.mealOut.findMany({
+      where: { familyId, date: { gte: start, lte: end } },
+    });
+    const outKey = new Set(
+      outs.map((out) => `${format(new Date(out.date), 'yyyy-MM-dd')}|${out.mealType}`)
+    );
+
     const indexByKey = new Map<string, number>();
 
     console.log('AUTO-SCHEDULE RANGE', {
@@ -427,6 +434,7 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
       const dateKey = format(d, 'yyyy-MM-dd');
       const dayUsed = new Set(usedByDate.get(dateKey) ?? []);
       for (const mealType of ['pranzo', 'cena'] as MealType[]) {
+        if (outKey.has(`${dateKey}|${mealType}`)) continue;
         const slotList = slotsByMeal[mealType];
         for (const slotCategory of slotList) {
           const key = `${dateKey}|${mealType}|${slotCategory}`;
@@ -494,6 +502,110 @@ router.post('/auto-schedule', isAuthenticated, async (req, res, next) => {
     });
 
     res.json({ success: true, created, missing: 0, neededByCategory });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get meal outs for a date range
+router.get('/outs', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const { start, end } = req.query;
+
+    if (!start || typeof start !== 'string' || !end || typeof end !== 'string') {
+      return res.status(400).json({ error: 'Start and end parameters are required (YYYY-MM-DD)' });
+    }
+
+    const startDate = parseDateOnly(start);
+    const endDate = parseDateOnly(end);
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    const outs = await prisma.mealOut.findMany({
+      where: {
+        familyId,
+        date: { gte: startDate, lte: endDate },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    res.json(outs);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Set meal out for a date/mealType (clears existing dishes)
+router.post('/outs', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const { date: dateStr, mealType } = req.body as { date?: string; mealType?: string };
+
+    if (!dateStr || typeof dateStr !== 'string') {
+      return res.status(400).json({ error: 'Date is required (YYYY-MM-DD)' });
+    }
+    if (!mealType || !['pranzo', 'cena'].includes(mealType)) {
+      return res.status(400).json({ error: 'Invalid mealType' });
+    }
+
+    const date = parseDateOnly(dateStr);
+    if (!date) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    const out = await prisma.$transaction(async (tx) => {
+      await tx.mealPlan.deleteMany({
+        where: { familyId, date, mealType: mealType as MealType },
+      });
+
+      return tx.mealOut.upsert({
+        where: {
+          familyId_date_mealType: {
+            familyId,
+            date,
+            mealType: mealType as MealType,
+          },
+        },
+        update: {},
+        create: {
+          familyId,
+          date,
+          mealType: mealType as MealType,
+        },
+      });
+    });
+
+    res.json(out);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Remove meal out for a date/mealType
+router.delete('/outs', isAuthenticated, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const { date: dateStr, mealType } = req.body as { date?: string; mealType?: string };
+
+    if (!dateStr || typeof dateStr !== 'string') {
+      return res.status(400).json({ error: 'Date is required (YYYY-MM-DD)' });
+    }
+    if (!mealType || !['pranzo', 'cena'].includes(mealType)) {
+      return res.status(400).json({ error: 'Invalid mealType' });
+    }
+
+    const date = parseDateOnly(dateStr);
+    if (!date) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    await prisma.mealOut.deleteMany({
+      where: { familyId, date, mealType: mealType as MealType },
+    });
+
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

@@ -481,7 +481,8 @@ export default function DashboardPage() {
               <Form.Control
                 value={newDishIngredients}
                 onChange={(e) => setNewDishIngredients(e.target.value)}
-                placeholder="es. pasta;pomodoro;olio"
+                className="placeholder-soft"
+                placeholder="es: pasta;pomodoro;olio"
               />
             </Form.Group>
           </Form>

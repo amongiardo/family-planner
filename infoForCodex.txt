@@ -107,3 +107,9 @@ Changelog
 - 2026-02-06: Auto-programma: evita ripetizioni <7 giorni, no duplicati pranzo/cena stesso giorno, modale insufficienza piatti.
 - 2026-02-06: Aggiunti asset prototipo (dashboard.png, screen_dashboard.png, v4-bubble-world.jsx, meal-planner-prototype.jsx, modal_example.webp) e rimosso vecchio /menu.
 - 2026-02-06: .gitignore aggiornato per logs/ e .dev_pids/.
+- 2026-02-09: Aggiunto MealOut (pranzo/cena fuori) con tabella dedicata e API CRUD.
+- 2026-02-09: Calendario: modale giorno salva solo su OK; pulsanti “Pranzo/Cena fuori” con annulla.
+- 2026-02-09: Calendario: rimozione rapida evento “fuori” e sync con meal_outs.
+- 2026-02-09: Auto-programma: evita ripetizioni <7 giorni, no duplicati stesso giorno (pranzo/cena).
+- 2026-02-09: Login: errori specifici (utente inesistente vs password errata).
+- 2026-02-09: StatusModal: testo centrato.

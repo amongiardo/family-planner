@@ -161,7 +161,8 @@ export default function InvitePage() {
             <Form.Label>Nome</Form.Label>
             <Form.Control
               type="text"
-              placeholder="Il tuo nome"
+              className="placeholder-soft"
+              placeholder="es: Il tuo nome"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               required
@@ -172,7 +173,8 @@ export default function InvitePage() {
             <Form.Label>Password</Form.Label>
             <Form.Control
               type="password"
-              placeholder="••••••••"
+              className="placeholder-soft"
+              placeholder="es: ••••••••"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required

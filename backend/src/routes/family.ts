@@ -125,10 +125,17 @@ router.get('/invites', isAuthenticated, async (req, res, next) => {
         email: true,
         expiresAt: true,
         createdAt: true,
+        token: true,
       },
     });
 
-    res.json(invites);
+    const baseUrl = process.env.FRONTEND_URL;
+    res.json(
+      invites.map((invite) => ({
+        ...invite,
+        inviteUrl: baseUrl ? `${baseUrl}/invite/${invite.token}` : undefined,
+      }))
+    );
   } catch (error) {
     next(error);
   }

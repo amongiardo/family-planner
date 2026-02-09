@@ -88,7 +88,8 @@ export default function LoginPage() {
               <Form.Label>Nome</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="Il tuo nome"
+                className="placeholder-soft"
+                placeholder="es: Il tuo nome"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required

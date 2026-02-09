@@ -1,4 +1,4 @@
-import { Dish, Family, MealPlan, ShoppingList, Suggestion, User, FamilyInvite } from '@/types';
+import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, FamilyInvite } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -112,6 +112,18 @@ export const mealsApi = {
   getRange: (start: string, end: string) =>
     fetchApi<MealPlan[]>(`/api/meals/range?start=${start}&end=${end}`),
   getDate: (date: string) => fetchApi<MealPlan[]>(`/api/meals/date/${date}`),
+  getOutRange: (start: string, end: string) =>
+    fetchApi<MealOut[]>(`/api/meals/outs?start=${start}&end=${end}`),
+  setOut: (data: { date: string; mealType: string }) =>
+    fetchApi<MealOut>('/api/meals/outs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  removeOut: (data: { date: string; mealType: string }) =>
+    fetchApi<{ success: boolean }>('/api/meals/outs', {
+      method: 'DELETE',
+      body: JSON.stringify(data),
+    }),
   create: (data: { date: string; mealType: string; slotCategory: string; dishId: string; isSuggestion?: boolean }) =>
     fetchApi<MealPlan>('/api/meals', {
       method: 'POST',

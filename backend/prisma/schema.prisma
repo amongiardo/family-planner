@@ -16,6 +16,7 @@ model Family {
   users         User[]
   dishes        Dish[]
   mealPlans     MealPlan[]
+  mealOuts      MealOut[]
   shoppingLists ShoppingList[]
   invites       FamilyInvite[]
 
@@ -79,6 +80,19 @@ model MealPlan {
 
   @@unique([familyId, date, mealType, slotCategory])
   @@map("meal_plans")
+}
+
+model MealOut {
+  id        String   @id @default(uuid())
+  familyId  String   @map("family_id")
+  date      DateTime @db.Date
+  mealType  MealType @map("meal_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id])
+
+  @@unique([familyId, date, mealType])
+  @@map("meal_outs")
 }
 
 model ShoppingList {
