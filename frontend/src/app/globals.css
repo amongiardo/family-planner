@@ -382,7 +382,7 @@ body::after {
 
 .btn-primary-soft {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(224, 210, 255, 0.9));
-  border: none;
+  border: 1px solid rgba(90, 70, 120, 0.35);
   color: #3a2f4f;
   font-weight: 800;
   box-shadow: 0 4px 0 rgba(90, 70, 120, 0.25);
@@ -985,6 +985,77 @@ body::after {
   font-weight: 700;
   color: #7d5ba6;
   margin-right: 4px;
+}
+
+.placeholder-soft::placeholder {
+  color: rgba(90, 90, 90, 0.35);
+}
+
+.family-member-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.family-member-details {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.family-member-item > .rounded-circle {
+  flex: 0 0 auto;
+}
+
+.family-member-details .text-muted,
+.family-member-details .fw-medium {
+  word-break: break-word;
+}
+
+.invite-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.invite-item-text {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.invite-item-text .text-muted,
+.invite-item-text .fw-medium {
+  word-break: break-word;
+}
+
+.invite-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.settings-list {
+  overflow: hidden;
+}
+
+.settings-list .list-group-item {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-card {
+  overflow: hidden;
 }
 
 .app-modal .modal-header,

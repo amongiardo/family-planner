@@ -182,7 +182,8 @@ export default function ImpostazioniPage() {
                       type="text"
                       value={familyName}
                       onChange={(e) => setFamilyName(e.target.value)}
-                      placeholder="Nome della famiglia"
+                      className="placeholder-soft"
+                      placeholder="es: Nome della famiglia"
                     />
                     <Button
                       type="submit"
@@ -204,7 +205,8 @@ export default function ImpostazioniPage() {
                       type="text"
                       value={familyCity}
                       onChange={(e) => setFamilyCity(e.target.value)}
-                      placeholder="Roma"
+                      className="placeholder-soft"
+                      placeholder="es: Roma"
                     />
                     <Button
                       type="submit"
@@ -223,11 +225,11 @@ export default function ImpostazioniPage() {
             </Card.Body>
           </Card>
 
-          <Card className="mb-4">
+          <Card className="mb-4 settings-card">
             <Card.Header>Membri della Famiglia</Card.Header>
-            <ListGroup variant="flush">
+            <ListGroup variant="flush" className="settings-list">
               {family?.users.map((member) => (
-                <ListGroup.Item key={member.id} className="d-flex align-items-center gap-3">
+                <ListGroup.Item key={member.id} className="family-member-item">
                   {member.avatarUrl ? (
                     <Image
                       src={member.avatarUrl}
@@ -244,7 +246,7 @@ export default function ImpostazioniPage() {
                       {member.name.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <div>
+                    <div className="family-member-details">
                     <div className="fw-medium">
                       {member.name}
                       {member.id === user?.id && (
@@ -276,7 +278,8 @@ export default function ImpostazioniPage() {
                       type="email"
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="email@esempio.com"
+                      className="placeholder-soft"
+                      placeholder="es: email@esempio.com"
                       required
                     />
                     <Button type="submit" variant="primary" disabled={inviteMutation.isPending}>
@@ -295,32 +298,33 @@ export default function ImpostazioniPage() {
             </Card.Body>
           </Card>
 
-          <Card>
+          <Card className="settings-card">
             <Card.Header>Inviti Pendenti</Card.Header>
             {invitesLoading ? (
               <Card.Body className="text-center">
                 <Spinner size="sm" animation="border" variant="success" />
               </Card.Body>
             ) : invites && invites.length > 0 ? (
-              <ListGroup variant="flush">
+              <ListGroup variant="flush" className="settings-list">
                 {invites.map((invite) => (
                   <ListGroup.Item key={invite.id}>
-                    <div className="d-flex justify-content-between align-items-start">
-                      <div>
+                    <div className="invite-item">
+                      <div className="invite-item-text">
                         <div className="fw-medium">{invite.email}</div>
                         <small className="text-muted">
                           Scade il{' '}
                           {format(parseISO(invite.expiresAt), 'd MMM yyyy', { locale: it })}
                         </small>
                       </div>
-                      <div>
+                      <div className="invite-item-actions">
                         <Button
-                          variant="outline-secondary"
+                          variant="outline-primary"
                           size="sm"
-                          className="me-1"
+                          className="me-1 btn-primary-soft"
                           onClick={() =>
                             handleCopyInvite(
-                              `${window.location.origin}/invite/${invite.id}`,
+                              invite.inviteUrl ??
+                                `${window.location.origin}/invite/${invite.token ?? invite.id}`,
                               invite.id
                             )
                           }
@@ -331,6 +335,7 @@ export default function ImpostazioniPage() {
                         <Button
                           variant="outline-danger"
                           size="sm"
+                          className="btn-danger-soft"
                           onClick={() => handleDeleteInvite(invite.id)}
                           title="Annulla invito"
                         >
