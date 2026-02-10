@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, Button, Spinner, Form } from 'react-bootstrap';
-import { FaGoogle, FaGithub, FaUsers } from 'react-icons/fa';
+import { FaUsers } from 'react-icons/fa';
 import { familyApi, authApi } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import StatusModal from '@/components/StatusModal';
@@ -18,7 +18,7 @@ export default function InvitePage() {
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [showInviteInfo, setShowInviteInfo] = useState(false);
-  const [form, setForm] = useState({ name: '', password: '' });
+  const [form, setForm] = useState({ name: '', password: '', passwordConfirm: '' });
   const [inviteData, setInviteData] = useState<{
     email: string;
     family: { id: string; name: string };
@@ -40,22 +40,24 @@ export default function InvitePage() {
     validateInvite();
   }, [token]);
 
-  const handleGoogleLogin = () => {
-    // Store invite token in session before redirecting to OAuth
-    sessionStorage.setItem('inviteToken', token);
-    window.location.href = `${authApi.getGoogleLoginUrl()}?invite=${token}`;
-  };
-
-  const handleGithubLogin = () => {
-    sessionStorage.setItem('inviteToken', token);
-    window.location.href = `${authApi.getGithubLoginUrl()}?invite=${token}`;
-  };
+  // OAuth login handlers commentati per sviluppi futuri
+  // const handleGoogleLogin = () => {
+  //   sessionStorage.setItem('inviteToken', token);
+  //   window.location.href = `${authApi.getGoogleLoginUrl()}?invite=${token}`;
+  // };
+  // const handleGithubLogin = () => {
+  //   sessionStorage.setItem('inviteToken', token);
+  //   window.location.href = `${authApi.getGithubLoginUrl()}?invite=${token}`;
+  // };
 
   const handleLocalRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteData) {
+    if (!inviteData) return;
+    if (form.password !== form.passwordConfirm) {
+      setLocalError('Le password non coincidono');
       return;
     }
+
     setSubmitting(true);
     setLocalError(null);
     try {
@@ -122,27 +124,7 @@ export default function InvitePage() {
           onClose={() => setShowInviteInfo(false)}
         />
 
-        <div className="d-grid gap-3">
-          <Button
-            variant="outline-dark"
-            size="lg"
-            onClick={handleGoogleLogin}
-            className="d-flex align-items-center justify-content-center gap-2"
-          >
-            <FaGoogle /> Accedi con Google
-          </Button>
-
-          <Button
-            variant="dark"
-            size="lg"
-            onClick={handleGithubLogin}
-            className="d-flex align-items-center justify-content-center gap-2"
-          >
-            <FaGithub /> Accedi con GitHub
-          </Button>
-        </div>
-
-        <div className="my-4 text-muted">oppure</div>
+        {/* Pulsanti OAuth nascosti per sviluppi futuri */}
 
         <StatusModal
           show={Boolean(localError)}
@@ -177,6 +159,18 @@ export default function InvitePage() {
               placeholder="es: ••••••••"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="invitePasswordConfirm">
+            <Form.Label>Conferma Password</Form.Label>
+            <Form.Control
+              type="password"
+              className="placeholder-soft"
+              placeholder="es: ••••••••"
+              value={form.passwordConfirm}
+              onChange={(e) => setForm({ ...form, passwordConfirm: e.target.value })}
               required
             />
           </Form.Group>

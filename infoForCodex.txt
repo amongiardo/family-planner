@@ -1,5 +1,5 @@
 INFO FOR CODEX
-Ultimo aggiornamento: 2026-02-06
+Ultimo aggiornamento: 2026-02-10
 
 Scopo del progetto
 Family Planner è una web app per l’organizzazione familiare, con focus su pasti, calendario e lista spesa. Consente di pianificare pranzi e cene su calendario, gestire un catalogo piatti con ingredienti, generare la lista della spesa e suggerire pasti per evitare ripetizioni e mantenere un’alimentazione bilanciata. Supporta l’uso multi‑famiglia con inviti e dati isolati per nucleo.
@@ -113,3 +113,5 @@ Changelog
 - 2026-02-09: Auto-programma: evita ripetizioni <7 giorni, no duplicati stesso giorno (pranzo/cena).
 - 2026-02-09: Login: errori specifici (utente inesistente vs password errata).
 - 2026-02-09: StatusModal: testo centrato.
+- 2026-02-10: Inviti: fix sintassi `handleLocalRegister` in `frontend/src/app/invite/[token]/page.tsx` (la pagina invite tornava compilabile).
+- 2026-02-10: Workflow: introdotti `SKILL.md` (regola `cm` = commit+push con richiesta esplicita a fine task) e `VERSION` (inizio versioning da `0.0.0`).
