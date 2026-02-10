@@ -5,6 +5,7 @@ export interface User {
   name: string;
   avatarUrl?: string;
   oauthProvider: 'google' | 'github' | 'local';
+  role: 'admin' | 'member';
   createdAt: string;
 }
 
@@ -12,6 +13,7 @@ export interface Family {
   id: string;
   name: string;
   city?: string;
+  authCode?: string;
   createdAt: string;
   users: FamilyMember[];
 }
@@ -21,6 +23,7 @@ export interface FamilyMember {
   name: string;
   email: string;
   avatarUrl?: string;
+  role?: 'admin' | 'member';
 }
 
 export type DishCategory = 'primo' | 'secondo' | 'contorno';

@@ -10,6 +10,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, suggestionsApi, dishesApi, familyApi, weatherApi, shoppingApi } from '@/lib/api';
 import { DishCategory, MealPlan, MealType } from '@/types';
 import StatusModal from '@/components/StatusModal';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
@@ -21,7 +22,7 @@ export default function DashboardPage() {
   const city = family?.city || 'Roma';
   const { data: weather } = useQuery({
     queryKey: ['weather', city],
-    queryFn: () => weatherApi.get(city),
+    queryFn: () => weatherApi.get(),
   });
   const initialWeekStart = startOfWeek(today, { weekStartsOn: 1 });
   const initialDayIndex = Math.min(
@@ -42,6 +43,7 @@ export default function DashboardPage() {
   const [newDishIngredients, setNewDishIngredients] = useState('');
   const [shoppingItem, setShoppingItem] = useState('');
   const [shoppingQty, setShoppingQty] = useState('');
+  const [pendingMealDelete, setPendingMealDelete] = useState<{ id: string; message: string } | null>(null);
 
   const { data: meals, isLoading: mealsLoading } = useQuery({
     queryKey: ['meals', 'range', rangeStart, rangeEnd],
@@ -207,7 +209,7 @@ export default function DashboardPage() {
   });
 
   const deleteMealMutation = useMutation({
-    mutationFn: mealsApi.delete,
+    mutationFn: ({ id, authCode }: { id: string; authCode: string }) => mealsApi.delete(id, authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meals'] });
     },
@@ -223,7 +225,10 @@ export default function DashboardPage() {
 
     if (!dishId) {
       if (existing) {
-        deleteMealMutation.mutate(existing.id);
+        setPendingMealDelete({
+          id: existing.id,
+          message: `Rimuovere ${mealType} · ${slotCategory} dalla pianificazione?`,
+        });
       }
       return;
     }
@@ -540,6 +545,19 @@ export default function DashboardPage() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <ConfirmModal
+        show={Boolean(pendingMealDelete)}
+        message={pendingMealDelete?.message || 'Rimuovere questo pasto?'}
+        onCancel={() => setPendingMealDelete(null)}
+        requireAuthCode
+        onConfirm={(authCode) => {
+          if (pendingMealDelete) {
+            deleteMealMutation.mutate({ id: pendingMealDelete.id, authCode: authCode || '' });
+          }
+          setPendingMealDelete(null);
+        }}
+      />
 
       <StatusModal
         show={Boolean(error)}

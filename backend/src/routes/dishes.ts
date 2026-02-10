@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { DishCategory } from '@prisma/client';
 import prisma from '../prisma';
 import { isAuthenticated, getFamilyId } from '../middleware/auth';
+import { requireFamilyAuthCode } from '../middleware/familyAuthCode';
 
 const router = Router();
 
@@ -36,7 +37,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
 });
 
 // Delete all dishes for family (and related meal plans)
-router.delete('/all', isAuthenticated, async (req, res, next) => {
+router.delete('/all', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
 
@@ -171,7 +172,7 @@ router.put('/:id', isAuthenticated, async (req, res, next) => {
 });
 
 // Delete dish
-router.delete('/:id', isAuthenticated, async (req, res, next) => {
+router.delete('/:id', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const { id } = req.params;

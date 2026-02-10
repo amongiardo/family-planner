@@ -2,6 +2,10 @@ import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, Family
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+function authCodeHeaders(authCode?: string): Record<string, string> {
+  return authCode ? { 'x-family-auth-code': authCode } : {};
+}
+
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -31,7 +35,13 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  registerLocal: (data: { email: string; password: string; name: string; inviteToken?: string }) =>
+  registerLocal: (data: {
+    email: string;
+    password: string;
+    name: string;
+    familyName?: string;
+    inviteToken?: string;
+  }) =>
     fetchApi<{ user: User }>('/auth/local/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -45,23 +55,23 @@ export const familyApi = {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
+  regenerateAuthCode: () =>
+    fetchApi<{ authCode: string }>('/api/family/auth-code/regenerate', { method: 'POST' }),
   invite: (email: string) => fetchApi<{ invite: FamilyInvite }>('/api/family/invite', {
     method: 'POST',
     body: JSON.stringify({ email }),
   }),
   getInvites: () => fetchApi<FamilyInvite[]>('/api/family/invites'),
-  deleteInvite: (id: string) => fetchApi<{ success: boolean }>(`/api/family/invites/${id}`, {
+  deleteInvite: (id: string, authCode: string) => fetchApi<{ success: boolean }>(`/api/family/invites/${id}`, {
     method: 'DELETE',
+    headers: authCodeHeaders(authCode),
   }),
   validateInvite: (token: string) => fetchApi<{ email: string; family: { id: string; name: string } }>(`/api/family/invite/${token}`),
 };
 
 // Weather
 export const weatherApi = {
-  get: (city?: string) =>
-    fetchApi<{ city: string; temperature?: number; description?: string }>(
-      `/api/weather${city ? `?city=${encodeURIComponent(city)}` : ''}`
-    ),
+  get: () => fetchApi<{ city: string; temperature?: number; description?: string }>('/api/weather'),
 };
 
 // Stats
@@ -96,13 +106,14 @@ export const dishesApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  delete: (id: string) => fetchApi<{ success: boolean }>(`/api/dishes/${id}`, {
+  delete: (id: string, authCode: string) => fetchApi<{ success: boolean }>(`/api/dishes/${id}`, {
     method: 'DELETE',
+    headers: authCodeHeaders(authCode),
   }),
   exportCsv: () => fetchApi<{ csv: string }>('/api/dishes/export'),
-  deleteAll: () => fetchApi<{ success: boolean; deletedMeals: number; deletedDishes: number }>(
+  deleteAll: (authCode: string) => fetchApi<{ success: boolean; deletedMeals: number; deletedDishes: number }>(
     '/api/dishes/all',
-    { method: 'DELETE' }
+    { method: 'DELETE', headers: authCodeHeaders(authCode) }
   ),
 };
 
@@ -114,15 +125,17 @@ export const mealsApi = {
   getDate: (date: string) => fetchApi<MealPlan[]>(`/api/meals/date/${date}`),
   getOutRange: (start: string, end: string) =>
     fetchApi<MealOut[]>(`/api/meals/outs?start=${start}&end=${end}`),
-  setOut: (data: { date: string; mealType: string }) =>
+  setOut: (data: { date: string; mealType: string }, authCode: string) =>
     fetchApi<MealOut>('/api/meals/outs', {
       method: 'POST',
       body: JSON.stringify(data),
+      headers: authCodeHeaders(authCode),
     }),
-  removeOut: (data: { date: string; mealType: string }) =>
+  removeOut: (data: { date: string; mealType: string }, authCode: string) =>
     fetchApi<{ success: boolean }>('/api/meals/outs', {
       method: 'DELETE',
       body: JSON.stringify(data),
+      headers: authCodeHeaders(authCode),
     }),
   create: (data: { date: string; mealType: string; slotCategory: string; dishId: string; isSuggestion?: boolean }) =>
     fetchApi<MealPlan>('/api/meals', {
@@ -134,16 +147,19 @@ export const mealsApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  delete: (id: string) => fetchApi<{ success: boolean }>(`/api/meals/${id}`, {
+  delete: (id: string, authCode: string) => fetchApi<{ success: boolean }>(`/api/meals/${id}`, {
     method: 'DELETE',
+    headers: authCodeHeaders(authCode),
   }),
-  clearAll: () => fetchApi<{ success: boolean; deleted: number }>('/api/meals', {
+  clearAll: (authCode: string) => fetchApi<{ success: boolean; deleted: number }>('/api/meals', {
     method: 'DELETE',
+    headers: authCodeHeaders(authCode),
   }),
-  clearRange: (data: { rangeType: string }) =>
+  clearRange: (data: { rangeType: string }, authCode: string) =>
     fetchApi<{ success: boolean; deleted: number }>('/api/meals/clear-range', {
       method: 'POST',
       body: JSON.stringify(data),
+      headers: authCodeHeaders(authCode),
     }),
   autoSchedule: (data: { rangeType: string; slots?: { pranzo?: string[]; cena?: string[] } }) =>
     fetchApi<{ success: boolean; created: number; missing?: number; neededByCategory?: { primo: number; secondo: number; contorno: number } }>(
@@ -182,15 +198,17 @@ export const shoppingApi = {
       method: 'PUT',
       body: JSON.stringify({ week, checked }),
     }),
-  removeItem: (itemId: string, week: string) =>
+  removeItem: (itemId: string, week: string, authCode: string) =>
     fetchApi<{ success: boolean }>(`/api/shopping/items/${itemId}?week=${week}`, {
       method: 'DELETE',
+      headers: authCodeHeaders(authCode),
     }),
-  clear: (week: string) =>
-    fetchApi<{ success: boolean }>(`/api/shopping?week=${week}`, { method: 'DELETE' }),
-  clearAll: () => fetchApi<{ success: boolean }>(`/api/shopping/all`, { method: 'DELETE' }),
-  clearPurchased: () =>
-    fetchApi<{ success: boolean }>(`/api/shopping/purchased`, { method: 'DELETE' }),
-  clearPending: () =>
-    fetchApi<{ success: boolean }>(`/api/shopping/pending`, { method: 'DELETE' }),
+  clear: (week: string, authCode: string) =>
+    fetchApi<{ success: boolean }>(`/api/shopping?week=${week}`, { method: 'DELETE', headers: authCodeHeaders(authCode) }),
+  clearAll: (authCode: string) =>
+    fetchApi<{ success: boolean }>(`/api/shopping/all`, { method: 'DELETE', headers: authCodeHeaders(authCode) }),
+  clearPurchased: (authCode: string) =>
+    fetchApi<{ success: boolean }>(`/api/shopping/purchased`, { method: 'DELETE', headers: authCodeHeaders(authCode) }),
+  clearPending: (authCode: string) =>
+    fetchApi<{ success: boolean }>(`/api/shopping/pending`, { method: 'DELETE', headers: authCodeHeaders(authCode) }),
 };

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { isAuthenticated, getFamilyId } from '../middleware/auth';
+import { requireFamilyAuthCode } from '../middleware/familyAuthCode';
 import {
   getOrCreateShoppingList,
   addShoppingItem,
@@ -93,7 +94,7 @@ router.put('/:itemId/check', isAuthenticated, async (req, res, next) => {
 });
 
 // Remove item from list
-router.delete('/items/:itemId', isAuthenticated, async (req, res, next) => {
+router.delete('/items/:itemId', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const { itemId } = req.params;
@@ -116,7 +117,7 @@ router.delete('/items/:itemId', isAuthenticated, async (req, res, next) => {
 });
 
 // Clear shopping list items for a week
-router.delete('/', isAuthenticated, async (req, res, next) => {
+router.delete('/', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const { week } = req.query;
@@ -138,7 +139,7 @@ router.delete('/', isAuthenticated, async (req, res, next) => {
 });
 
 // Clear all shopping lists for family
-router.delete('/all', isAuthenticated, async (req, res, next) => {
+router.delete('/all', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const result = await clearAllShoppingLists(familyId);
@@ -149,7 +150,7 @@ router.delete('/all', isAuthenticated, async (req, res, next) => {
 });
 
 // Clear purchased items across all lists
-router.delete('/purchased', isAuthenticated, async (req, res, next) => {
+router.delete('/purchased', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const result = await clearPurchasedItems(familyId);
@@ -160,7 +161,7 @@ router.delete('/purchased', isAuthenticated, async (req, res, next) => {
 });
 
 // Clear pending (unchecked) items across all lists
-router.delete('/pending', isAuthenticated, async (req, res, next) => {
+router.delete('/pending', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const result = await clearPendingItems(familyId);

@@ -27,8 +27,12 @@ export default function CalendarioPage() {
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingOutDelete, setPendingOutDelete] = useState<{ date: string; mealType: MealType } | null>(null);
+  const [pendingDraftSave, setPendingDraftSave] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [showClearRangeModal, setShowClearRangeModal] = useState(false);
+  const [clearAuthCode, setClearAuthCode] = useState('');
+  const [clearRangeAuthCode, setClearRangeAuthCode] = useState('');
   const [clearRange, setClearRange] = useState('this_week');
   const [currentMonthAnchor, setCurrentMonthAnchor] = useState<Date>(new Date());
   const [exportMeals, setExportMeals] = useState<MealPlan[] | null>(null);
@@ -103,15 +107,15 @@ export default function CalendarioPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: mealsApi.delete,
+    mutationFn: ({ id, authCode }: { id: string; authCode: string }) => mealsApi.delete(id, authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meals'] });
     },
   });
 
   const setOutMutation = useMutation({
-    mutationFn: ({ date, mealType }: { date: string; mealType: MealType }) =>
-      mealsApi.setOut({ date, mealType }),
+    mutationFn: ({ date, mealType, authCode }: { date: string; mealType: MealType; authCode: string }) =>
+      mealsApi.setOut({ date, mealType }, authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meals'] });
       queryClient.invalidateQueries({ queryKey: ['mealOuts'] });
@@ -119,8 +123,8 @@ export default function CalendarioPage() {
   });
 
   const removeOutMutation = useMutation({
-    mutationFn: ({ date, mealType }: { date: string; mealType: MealType }) =>
-      mealsApi.removeOut({ date, mealType }),
+    mutationFn: ({ date, mealType, authCode }: { date: string; mealType: MealType; authCode: string }) =>
+      mealsApi.removeOut({ date, mealType }, authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meals'] });
       queryClient.invalidateQueries({ queryKey: ['mealOuts'] });
@@ -128,14 +132,15 @@ export default function CalendarioPage() {
   });
 
   const clearAllMutation = useMutation({
-    mutationFn: mealsApi.clearAll,
+    mutationFn: ({ authCode }: { authCode: string }) => mealsApi.clearAll(authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meals'] });
     },
   });
 
   const clearRangeMutation = useMutation({
-    mutationFn: mealsApi.clearRange,
+    mutationFn: ({ rangeType, authCode }: { rangeType: string; authCode: string }) =>
+      mealsApi.clearRange({ rangeType }, authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meals'] });
     },
@@ -294,17 +299,34 @@ export default function CalendarioPage() {
     }
   };
 
-  const handleSaveDraft = async () => {
+  const draftSaveNeedsAuthCode = () => {
+    if (!selectedDateStr) return false;
+    for (const mealType of ['pranzo', 'cena'] as MealType[]) {
+      const hasOut = Boolean(getMealOut(selectedDateStr, mealType));
+      if (draftOut[mealType] !== hasOut) return true;
+      if (draftOut[mealType]) continue;
+      for (const slotCategory of slotCategories) {
+        const existing = getMealBySlot(selectedDateStr, mealType, slotCategory);
+        const draftDishId = draftSlots[mealType][slotCategory];
+        if (!draftDishId && existing) return true;
+      }
+    }
+    return false;
+  };
+
+  const saveDraftWithAuthCode = async (authCode?: string) => {
     if (!selectedDateStr) return;
     setSavingDraft(true);
     setError('');
     try {
       for (const mealType of ['pranzo', 'cena'] as MealType[]) {
         const hasOut = Boolean(getMealOut(selectedDateStr, mealType));
-        if (draftOut[mealType]) {
-          await mealsApi.setOut({ date: selectedDateStr, mealType });
-        } else if (hasOut) {
-          await mealsApi.removeOut({ date: selectedDateStr, mealType });
+        if (draftOut[mealType] && !hasOut) {
+          if (!authCode) throw new Error('Codice di autenticazione richiesto');
+          await mealsApi.setOut({ date: selectedDateStr, mealType }, authCode);
+        } else if (!draftOut[mealType] && hasOut) {
+          if (!authCode) throw new Error('Codice di autenticazione richiesto');
+          await mealsApi.removeOut({ date: selectedDateStr, mealType }, authCode);
         }
 
         if (draftOut[mealType]) continue;
@@ -313,7 +335,8 @@ export default function CalendarioPage() {
           const existing = getMealBySlot(selectedDateStr, mealType, slotCategory);
           const draftDishId = draftSlots[mealType][slotCategory];
           if (!draftDishId && existing) {
-            await mealsApi.delete(existing.id);
+            if (!authCode) throw new Error('Codice di autenticazione richiesto');
+            await mealsApi.delete(existing.id, authCode);
             continue;
           }
           if (draftDishId && !existing) {
@@ -338,6 +361,15 @@ export default function CalendarioPage() {
     } finally {
       setSavingDraft(false);
     }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!selectedDateStr) return;
+    if (draftSaveNeedsAuthCode()) {
+      setPendingDraftSave(true);
+      return;
+    }
+    await saveDraftWithAuthCode();
   };
 
   const getCategoryBadgeClass = (category: string) => {
@@ -371,33 +403,6 @@ export default function CalendarioPage() {
     );
   };
 
-  const handleSlotChange = (
-    dateStr: string,
-    mealType: MealType,
-    slotCategory: DishCategory,
-    dishId: string
-  ) => {
-    const existing = getMealBySlot(dateStr, mealType, slotCategory);
-    if (!dishId) {
-      if (existing) {
-        deleteMutation.mutate(existing.id);
-      }
-      return;
-    }
-    if (existing) {
-      if (existing.dishId !== dishId) {
-        updateMutation.mutate({ id: existing.id, data: { dishId } });
-      }
-      return;
-    }
-    createMutation.mutate({
-      date: dateStr,
-      mealType,
-      slotCategory,
-      dishId,
-    });
-  };
-
   const eventContent = (eventInfo: any) => {
     const { mealType, slotCategory, dish, isOut } = eventInfo.event.extendedProps;
     return (
@@ -413,8 +418,11 @@ export default function CalendarioPage() {
           onClick={(e) => {
             e.stopPropagation();
             if (isOut) {
-              removeOutMutation.mutate({
-                date: format(new Date(eventInfo.event.start), 'yyyy-MM-dd'),
+              const dateStr = eventInfo.event.start
+                ? format(eventInfo.event.start, 'yyyy-MM-dd')
+                : String(eventInfo.event.startStr || '');
+              setPendingOutDelete({
+                date: dateStr,
                 mealType,
               });
             } else {
@@ -588,7 +596,9 @@ export default function CalendarioPage() {
               }}
               eventClick={(info) => {
                 if (info.event.extendedProps?.isOut) {
-                  const dateStr = format(new Date(info.event.start), 'yyyy-MM-dd');
+                  const dateStr = info.event.start
+                    ? format(info.event.start, 'yyyy-MM-dd')
+                    : String(info.event.startStr || '');
                   setSelectedDateStr(dateStr);
                   setSelectedDate(toLocalDateFromDateOnly(dateStr));
                   setError('');
@@ -773,11 +783,39 @@ export default function CalendarioPage() {
         show={Boolean(pendingDeleteId)}
         message="Rimuovere questo piatto dalla pianificazione?"
         onCancel={() => setPendingDeleteId(null)}
-        onConfirm={() => {
+        requireAuthCode
+        onConfirm={(authCode) => {
           if (pendingDeleteId) {
-            deleteMutation.mutate(pendingDeleteId);
+            deleteMutation.mutate({ id: pendingDeleteId, authCode: authCode || '' });
           }
           setPendingDeleteId(null);
+        }}
+      />
+
+      <ConfirmModal
+        show={Boolean(pendingOutDelete)}
+        message="Annullare il pasto fuori?"
+        onCancel={() => setPendingOutDelete(null)}
+        requireAuthCode
+        onConfirm={(authCode) => {
+          if (pendingOutDelete) {
+            removeOutMutation.mutate({
+              ...pendingOutDelete,
+              authCode: authCode || '',
+            });
+          }
+          setPendingOutDelete(null);
+        }}
+      />
+
+      <ConfirmModal
+        show={pendingDraftSave}
+        message="Confermare le modifiche? (Sono presenti cancellazioni/svuotamenti)"
+        onCancel={() => setPendingDraftSave(false)}
+        requireAuthCode
+        onConfirm={(authCode) => {
+          setPendingDraftSave(false);
+          saveDraftWithAuthCode(authCode || '');
         }}
       />
 
@@ -790,9 +828,22 @@ export default function CalendarioPage() {
         <Modal.Header closeButton>
           <Modal.Title>Svuota Calendario</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          Questa azione rimuove tutti i pasti dal calendario. Vuoi continuare?
-        </Modal.Body>
+      <Modal.Body>
+        Questa azione rimuove tutti i pasti dal calendario. Vuoi continuare?
+        <Form.Group className="mt-3" controlId="clearCalendarAuthCode">
+          <Form.Label>Codice di autenticazione</Form.Label>
+          <Form.Control
+            type="text"
+            value={clearAuthCode}
+            onChange={(e) => setClearAuthCode(e.target.value)}
+            placeholder="es: A1B2C"
+            maxLength={5}
+          />
+          <Form.Text className="text-muted">
+            Inserisci il codice a 5 caratteri per confermare.
+          </Form.Text>
+        </Form.Group>
+      </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowClearModal(false)}>
             Annulla
@@ -800,10 +851,11 @@ export default function CalendarioPage() {
           <Button
             variant="primary"
             className="btn-danger-soft"
-            disabled={clearAllMutation.isPending}
+            disabled={clearAllMutation.isPending || !/^[A-Z0-9]{5}$/.test(clearAuthCode.trim().toUpperCase())}
             onClick={() => {
-              clearAllMutation.mutate();
+              clearAllMutation.mutate({ authCode: clearAuthCode.trim().toUpperCase() });
               setShowClearModal(false);
+              setClearAuthCode('');
             }}
           >
             {clearAllMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Svuota'}
@@ -839,6 +891,19 @@ export default function CalendarioPage() {
               />
             ))}
           </Form>
+          <Form.Group className="mt-3" controlId="clearRangeAuthCode">
+            <Form.Label>Codice di autenticazione</Form.Label>
+            <Form.Control
+              type="text"
+              value={clearRangeAuthCode}
+              onChange={(e) => setClearRangeAuthCode(e.target.value)}
+              placeholder="es: A1B2C"
+              maxLength={5}
+            />
+            <Form.Text className="text-muted">
+              Inserisci il codice a 5 caratteri per confermare.
+            </Form.Text>
+          </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowClearRangeModal(false)}>
@@ -847,10 +912,14 @@ export default function CalendarioPage() {
           <Button
             variant="primary"
             className="btn-danger-soft"
-            disabled={clearRangeMutation.isPending}
+            disabled={clearRangeMutation.isPending || !/^[A-Z0-9]{5}$/.test(clearRangeAuthCode.trim().toUpperCase())}
             onClick={() => {
-              clearRangeMutation.mutate({ rangeType: clearRange });
+              clearRangeMutation.mutate({
+                rangeType: clearRange,
+                authCode: clearRangeAuthCode.trim().toUpperCase(),
+              });
               setShowClearRangeModal(false);
+              setClearRangeAuthCode('');
             }}
           >
             {clearRangeMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Svuota'}

@@ -33,10 +33,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
     const familyId = getFamilyId(req);
     const family = await prisma.family.findUnique({ where: { id: familyId } });
 
-    const city =
-      typeof req.query.city === 'string' && req.query.city.trim()
-        ? req.query.city.trim()
-        : family?.city || 'Roma';
+    const city = family?.city || 'Roma';
 
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
       city
@@ -46,7 +43,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
     if (!geoResp.ok) {
       return res.status(502).json({ error: 'Weather geocoding failed' });
     }
-    const geoData = await geoResp.json();
+    const geoData = (await geoResp.json()) as any;
     const place = geoData?.results?.[0];
     if (!place) {
       return res.status(404).json({ error: 'City not found' });
@@ -57,7 +54,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
     if (!forecastResp.ok) {
       return res.status(502).json({ error: 'Weather fetch failed' });
     }
-    const forecast = await forecastResp.json();
+    const forecast = (await forecastResp.json()) as any;
     const current = forecast?.current;
 
     const temperature = current?.temperature_2m;

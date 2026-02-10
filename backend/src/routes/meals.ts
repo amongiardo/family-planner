@@ -3,6 +3,7 @@ import { DishCategory, MealType } from '@prisma/client';
 import { addDays, addMonths, addWeeks, differenceInCalendarDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from 'date-fns';
 import prisma from '../prisma';
 import { isAuthenticated, getFamilyId } from '../middleware/auth';
+import { requireFamilyAuthCode } from '../middleware/familyAuthCode';
 import { parseDateOnly } from '../utils/date';
 
 const router = Router();
@@ -538,7 +539,7 @@ router.get('/outs', isAuthenticated, async (req, res, next) => {
 });
 
 // Set meal out for a date/mealType (clears existing dishes)
-router.post('/outs', isAuthenticated, async (req, res, next) => {
+router.post('/outs', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const { date: dateStr, mealType } = req.body as { date?: string; mealType?: string };
@@ -584,7 +585,7 @@ router.post('/outs', isAuthenticated, async (req, res, next) => {
 });
 
 // Remove meal out for a date/mealType
-router.delete('/outs', isAuthenticated, async (req, res, next) => {
+router.delete('/outs', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const { date: dateStr, mealType } = req.body as { date?: string; mealType?: string };
@@ -612,7 +613,7 @@ router.delete('/outs', isAuthenticated, async (req, res, next) => {
 });
 
 // Delete meal plan
-router.delete('/:id', isAuthenticated, async (req, res, next) => {
+router.delete('/:id', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const { id } = req.params;
@@ -637,7 +638,7 @@ router.delete('/:id', isAuthenticated, async (req, res, next) => {
 });
 
 // Clear all meal plans for family
-router.delete('/', isAuthenticated, async (req, res, next) => {
+router.delete('/', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const result = await prisma.mealPlan.deleteMany({
@@ -650,7 +651,7 @@ router.delete('/', isAuthenticated, async (req, res, next) => {
 });
 
 // Clear meal plans for a date range (rangeType like auto-schedule)
-router.post('/clear-range', isAuthenticated, async (req, res, next) => {
+router.post('/clear-range', isAuthenticated, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const { rangeType } = req.body as { rangeType?: string };

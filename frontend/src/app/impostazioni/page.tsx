@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Card,
   Button,
@@ -22,10 +22,12 @@ import { familyApi } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import StatusModal from '@/components/StatusModal';
 import ConfirmModal from '@/components/ConfirmModal';
+import type { Family } from '@/types';
 
 export default function ImpostazioniPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [familyName, setFamilyName] = useState('');
   const [familyCity, setFamilyCity] = useState('Roma');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -34,22 +36,25 @@ export default function ImpostazioniPage() {
   const [success, setSuccess] = useState('');
   const [pendingInviteDelete, setPendingInviteDelete] = useState<string | null>(null);
 
-  const { data: family, isLoading } = useQuery({
+  const { data: family, isLoading } = useQuery<Family>({
     queryKey: ['family'],
     queryFn: familyApi.get,
-    onSuccess: (data) => {
-      if (data && !familyName) {
-        setFamilyName(data.name);
-      }
-      if (data?.city) {
-        setFamilyCity(data.city);
-      }
-    },
   });
+
+  useEffect(() => {
+    if (!family) return;
+    if (!familyName) {
+      setFamilyName(family.name);
+    }
+    if (family.city) {
+      setFamilyCity(family.city);
+    }
+  }, [family, familyName]);
 
   const { data: invites, isLoading: invitesLoading } = useQuery({
     queryKey: ['invites'],
     queryFn: familyApi.getInvites,
+    enabled: isAdmin,
   });
 
   const updateFamilyMutation = useMutation({
@@ -57,6 +62,18 @@ export default function ImpostazioniPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['family'] });
       setSuccess('Nome famiglia aggiornato');
+      setTimeout(() => setSuccess(''), 3000);
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
+  const regenerateAuthCodeMutation = useMutation({
+    mutationFn: familyApi.regenerateAuthCode,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['family'] });
+      setSuccess('Codice rigenerato');
       setTimeout(() => setSuccess(''), 3000);
     },
     onError: (err: Error) => {
@@ -78,7 +95,8 @@ export default function ImpostazioniPage() {
   });
 
   const deleteInviteMutation = useMutation({
-    mutationFn: familyApi.deleteInvite,
+    mutationFn: ({ id, authCode }: { id: string; authCode: string }) =>
+      familyApi.deleteInvite(id, authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invites'] });
     },
@@ -87,6 +105,10 @@ export default function ImpostazioniPage() {
   const handleUpdateFamily = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!isAdmin) {
+      setError('Solo l’amministratore può modificare le impostazioni della famiglia');
+      return;
+    }
     if (familyName.trim() || familyCity.trim()) {
       updateFamilyMutation.mutate({ name: familyName.trim(), city: familyCity.trim() });
     }
@@ -95,6 +117,10 @@ export default function ImpostazioniPage() {
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!isAdmin) {
+      setError('Solo l’amministratore può invitare nuovi membri');
+      return;
+    }
     if (inviteEmail.trim()) {
       inviteMutation.mutate(inviteEmail.trim());
     }
@@ -174,7 +200,8 @@ export default function ImpostazioniPage() {
           <Card className="mb-4">
             <Card.Header>Famiglia</Card.Header>
             <Card.Body>
-              <Form onSubmit={handleUpdateFamily}>
+              {isAdmin ? (
+                <Form onSubmit={handleUpdateFamily}>
                 <Form.Group className="mb-3">
                   <Form.Label>Nome Famiglia</Form.Label>
                   <InputGroup>
@@ -222,6 +249,41 @@ export default function ImpostazioniPage() {
                   </InputGroup>
                 </Form.Group>
               </Form>
+              ) : (
+                <div className="text-muted">
+                  Solo l’amministratore può modificare nome famiglia e città.
+                </div>
+              )}
+
+              {isAdmin && (
+                <div className="mt-3">
+                  <Form.Label>Codice di autenticazione</Form.Label>
+                  <InputGroup>
+                    <Form.Control
+                      type="text"
+                      value={family?.authCode || ''}
+                      readOnly
+                      className="placeholder-soft"
+                      placeholder="—"
+                    />
+                    <Button
+                      variant="outline-primary"
+                      className="btn-primary-soft"
+                      onClick={() => regenerateAuthCodeMutation.mutate()}
+                      disabled={regenerateAuthCodeMutation.isPending}
+                    >
+                      {regenerateAuthCodeMutation.isPending ? (
+                        <Spinner size="sm" animation="border" />
+                      ) : (
+                        'Rigenera'
+                      )}
+                    </Button>
+                  </InputGroup>
+                  <Form.Text className="text-muted">
+                    Serve per confermare azioni di cancellazione/svuotamento.
+                  </Form.Text>
+                </div>
+              )}
             </Card.Body>
           </Card>
 
@@ -254,6 +316,11 @@ export default function ImpostazioniPage() {
                           Tu
                         </Badge>
                       )}
+                      {member.role === 'admin' && (
+                        <Badge bg="success" className="ms-2">
+                          Admin
+                        </Badge>
+                      )}
                     </div>
                     <small className="text-muted">{member.email}</small>
                   </div>
@@ -264,6 +331,14 @@ export default function ImpostazioniPage() {
         </Col>
 
         <Col lg={6}>
+          {!isAdmin ? (
+            <Card className="mb-4">
+              <Card.Header>Inviti</Card.Header>
+              <Card.Body className="text-muted">
+                Solo l’amministratore può invitare nuovi membri.
+              </Card.Body>
+            </Card>
+          ) : (
           <Card className="mb-4">
             <Card.Header>Invita Membri</Card.Header>
             <Card.Body>
@@ -297,8 +372,10 @@ export default function ImpostazioniPage() {
               </Form>
             </Card.Body>
           </Card>
+          )}
 
-          <Card className="settings-card">
+          {isAdmin && (
+            <Card className="settings-card">
             <Card.Header>Inviti Pendenti</Card.Header>
             {invitesLoading ? (
               <Card.Body className="text-center">
@@ -350,6 +427,7 @@ export default function ImpostazioniPage() {
               <Card.Body className="text-muted">Nessun invito pendente</Card.Body>
             )}
           </Card>
+          )}
         </Col>
       </Row>
 
@@ -357,9 +435,10 @@ export default function ImpostazioniPage() {
         show={Boolean(pendingInviteDelete)}
         message="Annullare questo invito?"
         onCancel={() => setPendingInviteDelete(null)}
-        onConfirm={() => {
+        requireAuthCode
+        onConfirm={(authCode) => {
           if (pendingInviteDelete) {
-            deleteInviteMutation.mutate(pendingInviteDelete);
+            deleteInviteMutation.mutate({ id: pendingInviteDelete, authCode: authCode || '' });
           }
           setPendingInviteDelete(null);
         }}

@@ -16,7 +16,13 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>(inviteToken ? 'register' : 'login');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [form, setForm] = useState({ email: '', password: '', name: '' });
+  const [form, setForm] = useState({
+    email: '',
+    name: '',
+    familyName: '',
+    password: '',
+    passwordConfirm: '',
+  });
 
   useEffect(() => {
     if (!loading && user) {
@@ -32,10 +38,15 @@ export default function LoginPage() {
       if (mode === 'login') {
         await authApi.loginLocal({ email: form.email, password: form.password });
       } else {
+        if (form.password !== form.passwordConfirm) {
+          setLocalError('Le password non coincidono');
+          return;
+        }
         await authApi.registerLocal({
           email: form.email,
           password: form.password,
           name: form.name,
+          familyName: inviteToken ? undefined : form.familyName,
           inviteToken,
         });
       }
@@ -97,6 +108,20 @@ export default function LoginPage() {
             </Form.Group>
           )}
 
+          {mode === 'register' && !inviteToken && (
+            <Form.Group className="mb-3" controlId="familyName">
+              <Form.Label>Nome Famiglia</Form.Label>
+              <Form.Control
+                type="text"
+                className="placeholder-soft"
+                placeholder="es: Rossi"
+                value={form.familyName}
+                onChange={(e) => setForm({ ...form, familyName: e.target.value })}
+                required
+              />
+            </Form.Group>
+          )}
+
           <Form.Group className="mb-3" controlId="password">
             <Form.Label>Password</Form.Label>
             <Form.Control
@@ -106,6 +131,18 @@ export default function LoginPage() {
               required
             />
           </Form.Group>
+
+          {mode === 'register' && (
+            <Form.Group className="mb-3" controlId="passwordConfirm">
+              <Form.Label>Conferma Password</Form.Label>
+              <Form.Control
+                type="password"
+                value={form.passwordConfirm}
+                onChange={(e) => setForm({ ...form, passwordConfirm: e.target.value })}
+                required
+              />
+            </Form.Group>
+          )}
 
           <div className="d-grid">
             <Button variant="primary" type="submit" disabled={submitting}>

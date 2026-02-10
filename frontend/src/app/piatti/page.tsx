@@ -95,7 +95,8 @@ export default function PiattiPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: dishesApi.delete,
+    mutationFn: ({ id, authCode }: { id: string; authCode: string }) =>
+      dishesApi.delete(id, authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dishes'] });
     },
@@ -105,7 +106,7 @@ export default function PiattiPage() {
   });
 
   const deleteAllMutation = useMutation({
-    mutationFn: dishesApi.deleteAll,
+    mutationFn: ({ authCode }: { authCode: string }) => dishesApi.deleteAll(authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dishes'] });
       setImportStatus('Tutti i piatti e le pianificazioni correlate sono stati rimossi.');
@@ -618,7 +619,8 @@ export default function PiattiPage() {
             type="file"
             accept=".csv"
             onChange={(e) => {
-              const file = e.target.files?.[0] ?? null;
+              const input = e.currentTarget as HTMLInputElement;
+              const file = input.files?.[0] ?? null;
               setSelectedCsvFile(file);
             }}
           />
@@ -675,14 +677,13 @@ export default function PiattiPage() {
           )}
           {!exporting && exportUrl && (
             <div className="d-flex flex-column align-items-center gap-2">
-              <Button
-                variant="primary"
-                className="btn-primary-soft export-download-button"
+              <a
+                className="btn btn-primary btn-primary-soft export-download-button"
                 href={exportUrl}
                 download={exportFilename || 'familyPlanner_piatti.csv'}
               >
                 Download
-              </Button>
+              </a>
             </div>
           )}
           {!exporting && !exportUrl && (
@@ -797,9 +798,10 @@ export default function PiattiPage() {
         show={Boolean(pendingDeleteId)}
         message="Sei sicuro di voler eliminare questo piatto?"
         onCancel={() => setPendingDeleteId(null)}
-        onConfirm={() => {
+        requireAuthCode
+        onConfirm={(authCode) => {
           if (pendingDeleteId) {
-            deleteMutation.mutate(pendingDeleteId);
+            deleteMutation.mutate({ id: pendingDeleteId, authCode: authCode || '' });
           }
           setPendingDeleteId(null);
         }}
@@ -809,9 +811,10 @@ export default function PiattiPage() {
         show={confirmDeleteAll}
         message="Eliminare tutti i piatti e le pianificazioni collegate?"
         onCancel={() => setConfirmDeleteAll(false)}
-        onConfirm={() => {
+        requireAuthCode
+        onConfirm={(authCode) => {
           setConfirmDeleteAll(false);
-          deleteAllMutation.mutate();
+          deleteAllMutation.mutate({ authCode: authCode || '' });
         }}
       />
 

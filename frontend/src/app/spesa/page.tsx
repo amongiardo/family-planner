@@ -23,6 +23,7 @@ export default function SpesaPage() {
   const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [showClearPurchasedModal, setShowClearPurchasedModal] = useState(false);
   const [showClearPendingModal, setShowClearPendingModal] = useState(false);
+  const [pendingRemoveItemId, setPendingRemoveItemId] = useState<string | null>(null);
   const weekString = format(currentWeek, 'yyyy-MM-dd');
 
   const { data: shoppingList, isLoading, error } = useQuery({
@@ -82,21 +83,22 @@ export default function SpesaPage() {
   });
 
   const removeItemMutation = useMutation({
-    mutationFn: (itemId: string) => shoppingApi.removeItem(itemId, weekString),
+    mutationFn: ({ itemId, authCode }: { itemId: string; authCode: string }) =>
+      shoppingApi.removeItem(itemId, weekString, authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shopping', weekString] });
     },
   });
 
   const clearListMutation = useMutation({
-    mutationFn: () => shoppingApi.clear(weekString),
+    mutationFn: ({ authCode }: { authCode: string }) => shoppingApi.clear(weekString, authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shopping', weekString] });
     },
   });
 
   const clearAllListsMutation = useMutation({
-    mutationFn: () => shoppingApi.clearAll(),
+    mutationFn: ({ authCode }: { authCode: string }) => shoppingApi.clearAll(authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shopping'] });
     },
@@ -104,14 +106,14 @@ export default function SpesaPage() {
 
 
   const clearPurchasedMutation = useMutation({
-    mutationFn: () => shoppingApi.clearPurchased(),
+    mutationFn: ({ authCode }: { authCode: string }) => shoppingApi.clearPurchased(authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shopping'] });
     },
   });
 
   const clearPendingMutation = useMutation({
-    mutationFn: () => shoppingApi.clearPending(),
+    mutationFn: ({ authCode }: { authCode: string }) => shoppingApi.clearPending(authCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shopping'] });
     },
@@ -152,20 +154,6 @@ export default function SpesaPage() {
   }, [items]);
 
   const ingredientsByRange = (() => {
-    const map = new Map<
-      {
-        items: {
-          name: string;
-          uses: {
-            dishName: string;
-            mealType: string;
-            slotCategory: string;
-            date: string;
-          }[];
-        }[];
-      }
-    >();
-
     const holder = {
       items: [] as {
         name: string;
@@ -382,7 +370,7 @@ export default function SpesaPage() {
                           size="sm"
                           variant="outline-danger"
                           className="btn-danger-soft"
-                          onClick={() => removeItemMutation.mutate(existingPending.id)}
+                          onClick={() => setPendingRemoveItemId(existingPending.id)}
                           disabled={removeItemMutation.isPending}
                         >
                           Rimuovi
@@ -541,8 +529,9 @@ export default function SpesaPage() {
         show={showClearAllModal}
         message="Svuotare tutte le liste della spesa?"
         onCancel={() => setShowClearAllModal(false)}
-        onConfirm={() => {
-          clearAllListsMutation.mutate();
+        requireAuthCode
+        onConfirm={(authCode) => {
+          clearAllListsMutation.mutate({ authCode: authCode || '' });
           setShowClearAllModal(false);
         }}
       />
@@ -550,8 +539,9 @@ export default function SpesaPage() {
         show={showClearPendingModal}
         message="Svuotare gli ingredienti da comprare?"
         onCancel={() => setShowClearPendingModal(false)}
-        onConfirm={() => {
-          clearPendingMutation.mutate();
+        requireAuthCode
+        onConfirm={(authCode) => {
+          clearPendingMutation.mutate({ authCode: authCode || '' });
           setShowClearPendingModal(false);
         }}
       />
@@ -559,9 +549,23 @@ export default function SpesaPage() {
         show={showClearPurchasedModal}
         message="Svuotare gli ingredienti comprati?"
         onCancel={() => setShowClearPurchasedModal(false)}
-        onConfirm={() => {
-          clearPurchasedMutation.mutate();
+        requireAuthCode
+        onConfirm={(authCode) => {
+          clearPurchasedMutation.mutate({ authCode: authCode || '' });
           setShowClearPurchasedModal(false);
+        }}
+      />
+
+      <ConfirmModal
+        show={Boolean(pendingRemoveItemId)}
+        message="Rimuovere questo ingrediente dalla lista?"
+        onCancel={() => setPendingRemoveItemId(null)}
+        requireAuthCode
+        onConfirm={(authCode) => {
+          if (pendingRemoveItemId) {
+            removeItemMutation.mutate({ itemId: pendingRemoveItemId, authCode: authCode || '' });
+          }
+          setPendingRemoveItemId(null);
         }}
       />
     </DashboardLayout>

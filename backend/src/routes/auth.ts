@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import passport from 'passport';
 import prisma from '../prisma';
+import { generateFamilyAuthCode } from '../utils/familyAuthCode';
 
 const router = Router();
 
@@ -13,6 +14,13 @@ function sanitizeUser(user: any) {
 // Google OAuth
 router.get(
   '/google',
+  (req, _res, next) => {
+    const invite = typeof req.query.invite === 'string' ? req.query.invite : undefined;
+    if (invite) {
+      (req.session as any).inviteToken = invite;
+    }
+    next();
+  },
   passport.authenticate('google', {
     scope: ['profile', 'email'],
   })
@@ -31,6 +39,13 @@ router.get(
 // GitHub OAuth
 router.get(
   '/github',
+  (req, _res, next) => {
+    const invite = typeof req.query.invite === 'string' ? req.query.invite : undefined;
+    if (invite) {
+      (req.session as any).inviteToken = invite;
+    }
+    next();
+  },
   passport.authenticate('github', {
     scope: ['user:email'],
   })
@@ -49,7 +64,7 @@ router.get(
 // Local auth (email/password)
 router.post('/local/register', async (req, res, next) => {
   try {
-    const { email, password, name, inviteToken } = req.body ?? {};
+    const { email, password, name, inviteToken, familyName } = req.body ?? {};
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Missing email, password, or name' });
     }
@@ -60,6 +75,7 @@ router.post('/local/register', async (req, res, next) => {
     }
 
     let familyId: string | undefined;
+    let role: 'admin' | 'member' = 'admin';
     if (inviteToken) {
       const invite = await prisma.familyInvite.findUnique({ where: { token: inviteToken } });
       if (
@@ -69,6 +85,7 @@ router.post('/local/register', async (req, res, next) => {
         invite.email === email
       ) {
         familyId = invite.familyId;
+        role = 'member';
         await prisma.familyInvite.update({
           where: { id: invite.id },
           data: { usedAt: new Date() },
@@ -77,9 +94,13 @@ router.post('/local/register', async (req, res, next) => {
     }
 
     if (!familyId) {
+      if (!familyName || typeof familyName !== 'string' || !familyName.trim()) {
+        return res.status(400).json({ error: 'Missing family name' });
+      }
       const family = await prisma.family.create({
         data: {
-          name: `${name}'s Family`,
+          name: familyName.trim(),
+          authCode: generateFamilyAuthCode(5),
         },
       });
       familyId = family.id;
@@ -94,6 +115,7 @@ router.post('/local/register', async (req, res, next) => {
         oauthProvider: 'local',
         oauthId: email,
         passwordHash,
+        role,
       },
     });
 

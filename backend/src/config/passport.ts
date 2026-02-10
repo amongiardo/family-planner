@@ -2,6 +2,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import prisma from '../prisma';
+import { generateFamilyAuthCode } from '../utils/familyAuthCode';
 
 interface OAuthProfile {
   id: string;
@@ -34,6 +35,7 @@ async function findOrCreateUser(
 
   // Check for invite token
   let familyId: string | undefined;
+  let role: 'admin' | 'member' = 'admin';
 
   if (inviteToken) {
     const invite = await prisma.familyInvite.findUnique({
@@ -42,6 +44,7 @@ async function findOrCreateUser(
 
     if (invite && !invite.usedAt && invite.expiresAt > new Date() && invite.email === email) {
       familyId = invite.familyId;
+      role = 'member';
 
       // Mark invite as used
       await prisma.familyInvite.update({
@@ -56,6 +59,7 @@ async function findOrCreateUser(
     const family = await prisma.family.create({
       data: {
         name: `${profile.displayName}'s Family`,
+        authCode: generateFamilyAuthCode(5),
       },
     });
     familyId = family.id;
@@ -70,6 +74,7 @@ async function findOrCreateUser(
       avatarUrl: profile.photos?.[0]?.value,
       oauthProvider: provider,
       oauthId: profile.id,
+      role,
     },
   });
 

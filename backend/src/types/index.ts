@@ -1,8 +1,8 @@
-import { User } from '@prisma/client';
+import type { User as PrismaUser } from '@prisma/client';
 
 declare global {
   namespace Express {
-    interface User extends import('@prisma/client').User {}
+    interface User extends PrismaUser {}
   }
 }
 
@@ -12,6 +12,7 @@ export interface ShoppingListItem {
   quantity?: string;
   checked: boolean;
   dishNames: string[];
+  purchasedAt?: string | null;
 }
 
 export interface SuggestionParams {

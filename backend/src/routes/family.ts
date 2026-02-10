@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { addDays } from 'date-fns';
 import prisma from '../prisma';
 import { isAuthenticated, getFamilyId } from '../middleware/auth';
+import { requireAdmin } from '../middleware/roles';
+import { requireFamilyAuthCode } from '../middleware/familyAuthCode';
+import { generateFamilyAuthCode } from '../utils/familyAuthCode';
 
 const router = Router();
 
@@ -11,7 +14,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
 
-    const family = await prisma.family.findUnique({
+    let family = await prisma.family.findUnique({
       where: { id: familyId },
       include: {
         users: {
@@ -20,6 +23,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
             name: true,
             email: true,
             avatarUrl: true,
+            role: true,
           },
         },
       },
@@ -29,14 +33,35 @@ router.get('/', isAuthenticated, async (req, res, next) => {
       return res.status(404).json({ error: 'Family not found' });
     }
 
-    res.json(family);
+    // Backfill auth code for existing families (only if admin requests it).
+    if (req.user?.role === 'admin' && !family.authCode) {
+      family = await prisma.family.update({
+        where: { id: familyId },
+        data: { authCode: generateFamilyAuthCode(5) },
+        include: {
+          users: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+              role: true,
+            },
+          },
+        },
+      });
+    }
+
+    // Hide authCode from non-admin members.
+    const { authCode, ...safeFamily } = family as any;
+    res.json(req.user?.role === 'admin' ? family : safeFamily);
   } catch (error) {
     next(error);
   }
 });
 
 // Update family name / city
-router.put('/', isAuthenticated, async (req, res, next) => {
+router.put('/', isAuthenticated, requireAdmin, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const { name, city } = req.body;
@@ -59,8 +84,24 @@ router.put('/', isAuthenticated, async (req, res, next) => {
   }
 });
 
+// Regenerate destructive-action auth code (admin only)
+router.post('/auth-code/regenerate', isAuthenticated, requireAdmin, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const authCode = generateFamilyAuthCode(5);
+    const family = await prisma.family.update({
+      where: { id: familyId },
+      data: { authCode },
+      select: { authCode: true },
+    });
+    res.json({ authCode: family.authCode });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Create invite
-router.post('/invite', isAuthenticated, async (req, res, next) => {
+router.post('/invite', isAuthenticated, requireAdmin, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const { email } = req.body;
@@ -110,7 +151,7 @@ router.post('/invite', isAuthenticated, async (req, res, next) => {
 });
 
 // Get pending invites
-router.get('/invites', isAuthenticated, async (req, res, next) => {
+router.get('/invites', isAuthenticated, requireAdmin, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
 
@@ -142,7 +183,7 @@ router.get('/invites', isAuthenticated, async (req, res, next) => {
 });
 
 // Delete invite
-router.delete('/invites/:id', isAuthenticated, async (req, res, next) => {
+router.delete('/invites/:id', isAuthenticated, requireAdmin, requireFamilyAuthCode, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const { id } = req.params;
