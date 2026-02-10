@@ -55,6 +55,11 @@ export const familyApi = {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
+  updateMemberRole: (userId: string, role: 'admin' | 'member') =>
+    fetchApi<{ user: { id: string; role: 'admin' | 'member' } }>(`/api/family/members/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
   regenerateAuthCode: () =>
     fetchApi<{ authCode: string }>('/api/family/auth-code/regenerate', { method: 'POST' }),
   invite: (email: string) => fetchApi<{ invite: FamilyInvite }>('/api/family/invite', {

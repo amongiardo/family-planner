@@ -23,7 +23,7 @@ export interface FamilyMember {
   name: string;
   email: string;
   avatarUrl?: string;
-  role?: 'admin' | 'member';
+  role: 'admin' | 'member';
 }
 
 export type DishCategory = 'primo' | 'secondo' | 'contorno';

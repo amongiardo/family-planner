@@ -102,6 +102,19 @@ export default function ImpostazioniPage() {
     },
   });
 
+  const updateMemberRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: 'admin' | 'member' }) =>
+      familyApi.updateMemberRole(userId, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['family'] });
+      setSuccess('Ruolo aggiornato');
+      setTimeout(() => setSuccess(''), 3000);
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
   const handleUpdateFamily = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -308,7 +321,7 @@ export default function ImpostazioniPage() {
                       {member.name.charAt(0).toUpperCase()}
                     </div>
                   )}
-                    <div className="family-member-details">
+                  <div className="family-member-details">
                     <div className="fw-medium">
                       {member.name}
                       {member.id === user?.id && (
@@ -316,14 +329,31 @@ export default function ImpostazioniPage() {
                           Tu
                         </Badge>
                       )}
-                      {member.role === 'admin' && (
-                        <Badge bg="success" className="ms-2">
-                          Admin
-                        </Badge>
-                      )}
+                      <Badge bg={member.role === 'admin' ? 'success' : 'secondary'} className="ms-2">
+                        {member.role === 'admin' ? 'Admin' : 'Member'}
+                      </Badge>
                     </div>
                     <small className="text-muted">{member.email}</small>
                   </div>
+
+                  {isAdmin && member.id !== user?.id && (
+                    <div className="ms-auto" style={{ minWidth: 170 }}>
+                      <Form.Select
+                        size="sm"
+                        value={member.role}
+                        disabled={updateMemberRoleMutation.isPending}
+                        onChange={(e) => {
+                          const nextRole = e.target.value as 'admin' | 'member';
+                          if (nextRole !== member.role) {
+                            updateMemberRoleMutation.mutate({ userId: member.id, role: nextRole });
+                          }
+                        }}
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="member">Member</option>
+                      </Form.Select>
+                    </div>
+                  )}
                 </ListGroup.Item>
               ))}
             </ListGroup>

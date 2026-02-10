@@ -201,6 +201,48 @@ router.delete('/invites/:id', isAuthenticated, requireAdmin, requireFamilyAuthCo
   }
 });
 
+// Update member role (admin only)
+router.put('/members/:userId/role', isAuthenticated, requireAdmin, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const { userId } = req.params;
+    const { role } = req.body ?? {};
+
+    if (role !== 'admin' && role !== 'member') {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const target = await prisma.user.findFirst({
+      where: { id: userId, familyId },
+      select: { id: true, role: true },
+    });
+
+    if (!target) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent demoting the last admin of the family.
+    if (target.role === 'admin' && role === 'member') {
+      const adminCount = await prisma.user.count({
+        where: { familyId, role: 'admin' },
+      });
+      if (adminCount <= 1) {
+        return res.status(400).json({ error: 'Non puoi rimuovere l’ultimo admin della famiglia' });
+      }
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: { id: true, role: true },
+    });
+
+    res.json({ user: updated });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Validate invite token (public route)
 router.get('/invite/:token', async (req, res, next) => {
   try {
