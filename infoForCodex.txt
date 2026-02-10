@@ -116,3 +116,4 @@ Changelog
 - 2026-02-10: Inviti: fix sintassi `handleLocalRegister` in `frontend/src/app/invite/[token]/page.tsx` (la pagina invite tornava compilabile).
 - 2026-02-10: Workflow: introdotti `SKILL.md` (regola `cm` = commit+push con richiesta esplicita a fine task) e `VERSION` (inizio versioning da `0.0.0`).
 - 2026-02-10: Sicurezza/ruoli: introdotti ruoli utente (`admin`/`member`) e `authCode` famiglia (5 char) per proteggere azioni distruttive; UI aggiornata per richiedere il codice quando serve.
+- 2026-02-10: Workflow: `cm` ora stage-a di default solo file tracked (`git add -u`), lasciando gli untracked fuori finche' richiesti esplicitamente.

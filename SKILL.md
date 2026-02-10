@@ -35,7 +35,7 @@ Regola consigliata:
 
 1. Verificare lo stato: `git status -sb`
 1. Assicurarsi che i file staged siano solo quelli correlati
-1. `git add ...`
+1. Di default non includere file untracked: usare `git add -u`
+1. Se l’utente chiede esplicitamente di includere untracked: usare `git add -A` (oppure aggiungere i path specifici)
 1. `git commit -m "..."` (messaggio breve e specifico)
 1. `git push` sul branch corrente
-
