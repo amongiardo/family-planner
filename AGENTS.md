@@ -50,5 +50,5 @@ Quando si lavora con più sessioni Codex in parallelo:
 - Segui le regole operative in `SKILL.md` (in particolare: chiedere sempre se fare `cm` a fine fix/feature).
 - Mantieni un versioning SemVer in `VERSION` (partenza `0.0.0`) e aggiornalo quando fai un rilascio logico o quando richiesto.
 
-Ultimo aggiornamento: 2026-02-10 (workflow: cm + SKILL.md + VERSION)
+Ultimo aggiornamento: 2026-02-12 (font locali Nunito + fix build login con Suspense)
 </INSTRUCTIONS>

@@ -1,5 +1,5 @@
 INFO FOR CODEX
-Ultimo aggiornamento: 2026-02-10
+Ultimo aggiornamento: 2026-02-12
 
 Scopo del progetto
 Family Planner è una web app per l’organizzazione familiare, con focus su pasti, calendario e lista spesa. Consente di pianificare pranzi e cene su calendario, gestire un catalogo piatti con ingredienti, generare la lista della spesa e suggerire pasti per evitare ripetizioni e mantenere un’alimentazione bilanciata. Supporta l’uso multi‑famiglia con inviti e dati isolati per nucleo.
@@ -117,3 +117,6 @@ Changelog
 - 2026-02-10: Workflow: introdotti `SKILL.md` (regola `cm` = commit+push con richiesta esplicita a fine task) e `VERSION` (inizio versioning da `0.0.0`).
 - 2026-02-10: Sicurezza/ruoli: introdotti ruoli utente (`admin`/`member`) e `authCode` famiglia (5 char) per proteggere azioni distruttive; UI aggiornata per richiedere il codice quando serve.
 - 2026-02-10: Workflow: `cm` ora stage-a di default solo file tracked (`git add -u`), lasciando gli untracked fuori finche' richiesti esplicitamente.
+- 2026-02-12: Frontend build hardening: sostituito `next/font/google` con `next/font/local` per Nunito (asset locali in `frontend/src/app/fonts/nunito`) per evitare dipendenza rete durante `next build`.
+- 2026-02-12: Aggiunto script `scripts/install_nunito_local.sh` per installazione/copia automatica dei file font locali.
+- 2026-02-12: Fix build Next.js su `/login`: `useSearchParams()` ora incapsulato in `Suspense` in `frontend/src/app/login/page.tsx`.
