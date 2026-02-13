@@ -40,6 +40,7 @@ model User {
   name          String
   avatarUrl     String?  @map("avatar_url")
   passwordHash  String?  @map("password_hash")
+  authCode      String?  @map("auth_code") @db.VarChar(5)
   oauthProvider String   @map("oauth_provider")
   oauthId       String   @map("oauth_id")
   createdAt     DateTime @default(now()) @map("created_at")

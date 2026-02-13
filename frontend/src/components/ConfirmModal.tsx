@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Modal, Button, Form } from 'react-bootstrap';
+import { Modal, Button, Form, InputGroup } from 'react-bootstrap';
+import { FaPaste } from 'react-icons/fa';
 
 interface ConfirmModalProps {
   show: boolean;
@@ -35,6 +36,15 @@ export default function ConfirmModal({
   const normalizedCode = authCode.trim().toUpperCase();
   const codeValid = /^[A-Z0-9]{5}$/.test(normalizedCode);
 
+  const handlePasteAuthCode = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setAuthCode((text || '').trim().toUpperCase().slice(0, 5));
+    } catch (error) {
+      console.error('Failed to paste auth code:', error);
+    }
+  };
+
   return (
     <Modal show={show} onHide={onCancel} centered dialogClassName="app-modal">
       <Modal.Header closeButton>
@@ -45,15 +55,26 @@ export default function ConfirmModal({
         {requireAuthCode && (
           <Form.Group className="mt-3" controlId="familyAuthCode">
             <Form.Label>Codice di autenticazione</Form.Label>
-            <Form.Control
-              type="text"
-              inputMode="text"
-              autoComplete="off"
-              value={authCode}
-              onChange={(e) => setAuthCode(e.target.value)}
-              placeholder="es: A1B2C"
-              maxLength={5}
-            />
+            <InputGroup>
+              <Form.Control
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                value={authCode}
+                onChange={(e) => setAuthCode(e.target.value)}
+                placeholder="es: A1B2C"
+                maxLength={5}
+              />
+              <Button
+                type="button"
+                variant="outline-primary"
+                className="btn-primary-soft"
+                onClick={handlePasteAuthCode}
+                title="Incolla codice"
+              >
+                <FaPaste />
+              </Button>
+            </InputGroup>
             <Form.Text className="text-muted">
               Inserisci il codice a 5 caratteri per confermare.
             </Form.Text>

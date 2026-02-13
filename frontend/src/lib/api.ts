@@ -3,7 +3,12 @@ import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, Family
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 function authCodeHeaders(authCode?: string): Record<string, string> {
-  return authCode ? { 'x-family-auth-code': authCode } : {};
+  return authCode
+    ? {
+        'x-user-auth-code': authCode,
+        'x-family-auth-code': authCode,
+      }
+    : {};
 }
 
 function activeFamilyHeaders(): Record<string, string> {
@@ -96,10 +101,11 @@ export const familyApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  deleteFamily: (familyId: string, authCode: string) =>
+  deleteFamily: (familyId: string, authCode: string, targetFamilyId?: string) =>
     fetchApi<{ success: boolean; activeFamilyId: string | null }>(`/api/family/${familyId}`, {
       method: 'DELETE',
       headers: authCodeHeaders(authCode),
+      body: targetFamilyId ? JSON.stringify({ targetFamilyId }) : undefined,
     }),
   leaveFamily: (familyId: string) =>
     fetchApi<{ success: boolean; activeFamilyId: string | null }>(`/api/family/${familyId}/leave`, {

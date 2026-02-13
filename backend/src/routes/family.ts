@@ -4,7 +4,7 @@ import { addDays } from 'date-fns';
 import prisma from '../prisma';
 import { isAuthenticated, getFamilyId, getFamilyRole } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles';
-import { requireFamilyAuthCode } from '../middleware/familyAuthCode';
+import { ensureUserAuthCode, readProvidedCode, requireFamilyAuthCode } from '../middleware/familyAuthCode';
 import { generateFamilyAuthCode, isValidFamilyAuthCode } from '../utils/familyAuthCode';
 
 const router = Router();
@@ -15,12 +15,12 @@ type InviteValidationResult =
   | { ok: true; invite: any }
   | { ok: false; error: string; status: number };
 
-function toFamilyResponse(family: any, role: FamilyRole, includeAuthCode: boolean) {
+function toFamilyResponse(family: any, role: FamilyRole, authCode?: string) {
   return {
     id: family.id,
     name: family.name,
     city: family.city,
-    authCode: includeAuthCode ? family.authCode : undefined,
+    authCode,
     createdAt: family.createdAt,
     users: (family.memberships || []).map((membership: any) => ({
       id: membership.user.id,
@@ -31,22 +31,6 @@ function toFamilyResponse(family: any, role: FamilyRole, includeAuthCode: boolea
     })),
     role,
   };
-}
-
-function readAuthCode(req: any): string | null {
-  const headerCode =
-    typeof req.headers['x-family-auth-code'] === 'string'
-      ? req.headers['x-family-auth-code']
-      : Array.isArray(req.headers['x-family-auth-code'])
-        ? req.headers['x-family-auth-code'][0]
-        : null;
-
-  const bodyCode = req.body?.authCode;
-  const queryCode = req.query?.authCode;
-  const raw = headerCode ?? bodyCode ?? queryCode;
-  if (typeof raw !== 'string') return null;
-  const normalized = raw.trim().toUpperCase();
-  return normalized || null;
 }
 
 async function ensureInviteValid(token: string): Promise<InviteValidationResult> {
@@ -74,8 +58,9 @@ router.get('/', isAuthenticated, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const role = getFamilyRole(req);
+    const userAuthCode = await ensureUserAuthCode(req.user!.id);
 
-    let family = await prisma.family.findUnique({
+    const family = await prisma.family.findUnique({
       where: { id: familyId },
       include: {
         memberships: {
@@ -99,30 +84,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
       return res.status(404).json({ error: 'Family not found' });
     }
 
-    if (role === 'admin' && !family.authCode) {
-      family = await prisma.family.update({
-        where: { id: familyId },
-        data: { authCode: generateFamilyAuthCode(5) },
-        include: {
-          memberships: {
-            where: { status: 'active' },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  avatarUrl: true,
-                },
-              },
-            },
-            orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
-          },
-        },
-      });
-    }
-
-    res.json(toFamilyResponse(family, role, role === 'admin'));
+    res.json(toFamilyResponse(family, role, userAuthCode));
   } catch (error) {
     next(error);
   }
@@ -231,7 +193,6 @@ router.post('/create', isAuthenticated, async (req, res, next) => {
       data: {
         name: name.trim(),
         city: typeof city === 'string' && city.trim() ? city.trim() : 'Roma',
-        authCode: generateFamilyAuthCode(5),
       },
     });
 
@@ -360,6 +321,8 @@ router.delete('/:familyId', isAuthenticated, async (req, res, next) => {
   try {
     const { familyId } = req.params;
     const userId = req.user!.id;
+    const { targetFamilyId } = req.body as { targetFamilyId?: string };
+    const isDeletingActiveFamily = req.session.activeFamilyId === familyId;
 
     const membership = await prisma.familyMember.findUnique({
       where: { familyId_userId: { familyId, userId } },
@@ -374,7 +337,34 @@ router.delete('/:familyId', isAuthenticated, async (req, res, next) => {
       return res.status(403).json({ error: 'Only admin can delete the family' });
     }
 
-    const code = readAuthCode(req);
+    // Check if this is the only family
+    const activeFamiliesCount = await prisma.familyMember.count({
+      where: { userId, status: 'active' },
+    });
+    if (activeFamiliesCount <= 1) {
+      return res.status(400).json({ error: 'Non puoi eliminare l\'unica famiglia di cui fai parte' });
+    }
+
+    if (isDeletingActiveFamily) {
+      if (!targetFamilyId || typeof targetFamilyId !== 'string') {
+        return res.status(400).json({ error: 'Seleziona la famiglia di destinazione prima di eliminare quella attiva' });
+      }
+
+      if (targetFamilyId === familyId) {
+        return res.status(400).json({ error: 'La famiglia di destinazione deve essere diversa da quella da eliminare' });
+      }
+
+      const targetMembership = await prisma.familyMember.findUnique({
+        where: { familyId_userId: { familyId: targetFamilyId, userId } },
+        select: { status: true },
+      });
+
+      if (targetMembership?.status !== 'active') {
+        return res.status(400).json({ error: 'La famiglia di destinazione non è valida' });
+      }
+    }
+
+    const code = readProvidedCode(req);
     if (!code) {
       return res.status(400).json({ error: 'Codice di autenticazione richiesto' });
     }
@@ -382,33 +372,23 @@ router.delete('/:familyId', isAuthenticated, async (req, res, next) => {
       return res.status(400).json({ error: 'Codice di autenticazione non valido' });
     }
 
-    const family = await prisma.family.findUnique({
+    const familyExists = await prisma.family.findUnique({
       where: { id: familyId },
-      select: { authCode: true },
+      select: { id: true },
     });
-
-    if (!family) {
+    if (!familyExists) {
       return res.status(404).json({ error: 'Family not found' });
     }
 
-    const familyCode = family.authCode || generateFamilyAuthCode(5);
-    if (!family.authCode) {
-      await prisma.family.update({ where: { id: familyId }, data: { authCode: familyCode } });
-    }
-
-    if (familyCode.toUpperCase() !== code) {
+    const userAuthCode = await ensureUserAuthCode(userId);
+    if (userAuthCode.toUpperCase() !== code) {
       return res.status(403).json({ error: 'Codice di autenticazione errato' });
     }
 
     await prisma.family.delete({ where: { id: familyId } });
 
-    if (req.session.activeFamilyId === familyId) {
-      const fallback = await prisma.familyMember.findFirst({
-        where: { userId, status: 'active' },
-        orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
-        select: { familyId: true },
-      });
-      req.session.activeFamilyId = fallback?.familyId;
+    if (isDeletingActiveFamily && targetFamilyId) {
+      req.session.activeFamilyId = targetFamilyId;
     }
 
     res.json({ success: true, activeFamilyId: req.session.activeFamilyId || null });
@@ -441,17 +421,15 @@ router.put('/', isAuthenticated, requireAdmin, async (req, res, next) => {
   }
 });
 
-// Regenerate destructive-action auth code (active family, admin only)
-router.post('/auth-code/regenerate', isAuthenticated, requireAdmin, async (req, res, next) => {
+// Regenerate user auth code used for destructive actions
+router.post('/auth-code/regenerate', isAuthenticated, async (req, res, next) => {
   try {
-    const familyId = getFamilyId(req);
-    const authCode = generateFamilyAuthCode(5);
-    const family = await prisma.family.update({
-      where: { id: familyId },
-      data: { authCode },
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { authCode: generateFamilyAuthCode(5) },
       select: { authCode: true },
     });
-    res.json({ authCode: family.authCode });
+    res.json({ authCode: user.authCode });
   } catch (error) {
     next(error);
   }

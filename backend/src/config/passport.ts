@@ -72,13 +72,13 @@ async function findOrCreateUser(
         avatarUrl: profile.photos?.[0]?.value,
         oauthProvider: provider,
         oauthId: profile.id,
+        authCode: generateFamilyAuthCode(5),
       },
     });
 
     const family = await prisma.family.create({
       data: {
         name: `${profile.displayName}'s Family`,
-        authCode: generateFamilyAuthCode(5),
       },
     });
 

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import passport from 'passport';
 import prisma from '../prisma';
 import { generateFamilyAuthCode } from '../utils/familyAuthCode';
+import { ensureUserAuthCode } from '../middleware/familyAuthCode';
 
 const router = Router();
 
@@ -35,6 +36,7 @@ async function resolveActiveFamilyId(userId: string, current?: string) {
 }
 
 async function buildAuthPayload(userId: string, activeFamilyId?: string) {
+  const ensuredAuthCode = await ensureUserAuthCode(userId);
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return { user: null };
 
@@ -59,6 +61,7 @@ async function buildAuthPayload(userId: string, activeFamilyId?: string) {
   return {
     user: {
       ...sanitizeUser(user),
+      authCode: ensuredAuthCode,
       // Backward-compatible fields used by existing frontend.
       familyId: activeMembership?.familyId,
       role: activeMembership?.role,
@@ -214,6 +217,7 @@ router.post('/local/register', async (req, res, next) => {
         oauthProvider: 'local',
         oauthId: normalizedEmail,
         passwordHash,
+        authCode: generateFamilyAuthCode(5),
       },
     });
 
@@ -257,7 +261,6 @@ router.post('/local/register', async (req, res, next) => {
       const family = await prisma.family.create({
         data: {
           name: familyName.trim(),
-          authCode: generateFamilyAuthCode(5),
         },
       });
 

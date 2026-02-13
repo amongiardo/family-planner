@@ -18,7 +18,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaEnvelope, FaTrash, FaCopy, FaCheck } from 'react-icons/fa';
+import { FaEnvelope, FaTrash, FaCopy, FaCheck, FaPaste } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { familyApi } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
@@ -38,12 +38,15 @@ export default function ImpostazioniPage() {
   const [showCreateFamilyModal, setShowCreateFamilyModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
+  const [copiedAuthCode, setCopiedAuthCode] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [pendingInviteDelete, setPendingInviteDelete] = useState<string | null>(null);
-  const [pendingFamilyDelete, setPendingFamilyDelete] = useState<{ id: string; name: string } | null>(null);
+  const [pendingFamilyDelete, setPendingFamilyDelete] = useState<{ id: string; name: string; isActive: boolean } | null>(null);
   const [pendingLeaveFamily, setPendingLeaveFamily] = useState<{ id: string; name: string } | null>(null);
   const [pendingForgetFamily, setPendingForgetFamily] = useState<{ id: string; name: string } | null>(null);
+  const [targetFamilyId, setTargetFamilyId] = useState<string>('');
+  const [deleteFamilyAuthCode, setDeleteFamilyAuthCode] = useState('');
 
   const { data: family, isLoading } = useQuery<Family>({
     queryKey: ['family'],
@@ -142,8 +145,8 @@ export default function ImpostazioniPage() {
   });
 
   const deleteFamilyMutation = useMutation({
-    mutationFn: ({ familyId, authCode }: { familyId: string; authCode: string }) =>
-      familyApi.deleteFamily(familyId, authCode),
+    mutationFn: ({ familyId, authCode, targetFamilyId }: { familyId: string; authCode: string; targetFamilyId?: string }) =>
+      familyApi.deleteFamily(familyId, authCode, targetFamilyId),
     onSuccess: async (data) => {
       if (typeof window !== 'undefined') {
         if (data.activeFamilyId) {
@@ -156,7 +159,8 @@ export default function ImpostazioniPage() {
       queryClient.clear();
       setSuccess('Famiglia eliminata');
       setTimeout(() => setSuccess(''), 3000);
-      router.replace('/dashboard');
+      router.replace('/impostazioni');
+      router.refresh();
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -249,8 +253,29 @@ export default function ImpostazioniPage() {
     }
   };
 
+  const handleCopyAuthCode = async () => {
+    const code = family?.authCode?.trim();
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedAuthCode(true);
+      setTimeout(() => setCopiedAuthCode(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy auth code:', err);
+    }
+  };
+
   const handleDeleteInvite = (id: string) => {
     setPendingInviteDelete(id);
+  };
+
+  const handlePasteDeleteFamilyAuthCode = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setDeleteFamilyAuthCode((text || '').trim().toUpperCase().slice(0, 5));
+    } catch (err) {
+      console.error('Failed to paste auth code:', err);
+    }
   };
 
   if (isLoading) {
@@ -375,34 +400,41 @@ export default function ImpostazioniPage() {
                 </div>
               )}
 
-              {isAdmin && (
-                <div className="mt-3">
-                  <Form.Label>Codice di autenticazione</Form.Label>
-                  <InputGroup>
-                    <Form.Control
-                      type="text"
-                      value={family?.authCode || ''}
-                      disabled
-                      placeholder="—"
-                    />
-                    <Button
-                      variant="outline-primary"
-                      className="btn-primary-soft"
-                      onClick={() => regenerateAuthCodeMutation.mutate()}
-                      disabled={regenerateAuthCodeMutation.isPending}
-                    >
-                      {regenerateAuthCodeMutation.isPending ? (
-                        <Spinner size="sm" animation="border" />
-                      ) : (
-                        'Rigenera'
-                      )}
-                    </Button>
-                  </InputGroup>
-                  <Form.Text className="text-muted">
-                    Serve per confermare azioni di cancellazione/svuotamento.
-                  </Form.Text>
-                </div>
-              )}
+              <div className="mt-3">
+                <Form.Label>Codice di autenticazione utente</Form.Label>
+                <InputGroup>
+                  <Form.Control
+                    type="text"
+                    value={family?.authCode || ''}
+                    disabled
+                    placeholder="—"
+                  />
+                  <Button
+                    variant="outline-primary"
+                    className="btn-primary-soft"
+                    onClick={handleCopyAuthCode}
+                    disabled={!family?.authCode}
+                    title="Copia codice"
+                  >
+                    {copiedAuthCode ? <FaCheck /> : <FaCopy />}
+                  </Button>
+                  <Button
+                    variant="outline-primary"
+                    className="btn-primary-soft"
+                    onClick={() => regenerateAuthCodeMutation.mutate()}
+                    disabled={regenerateAuthCodeMutation.isPending}
+                  >
+                    {regenerateAuthCodeMutation.isPending ? (
+                      <Spinner size="sm" animation="border" />
+                    ) : (
+                      'Rigenera'
+                    )}
+                  </Button>
+                </InputGroup>
+                <Form.Text className="text-muted">
+                  È personale per account (stessa email), uguale su tutte le famiglie.
+                </Form.Text>
+              </div>
             </Card.Body>
           </Card>
 
@@ -414,8 +446,9 @@ export default function ImpostazioniPage() {
               </Card.Body>
             ) : myFamilies?.families?.length ? (
               <ListGroup variant="flush" className="settings-list">
-                {myFamilies.families.map((familyItem) => {
+              {myFamilies.families.map((familyItem) => {
                   const isCurrent = familyItem.id === user?.activeFamilyId;
+                  const isOnlyFamily = myFamilies.families.length === 1;
                   return (
                     <ListGroup.Item key={familyItem.id}>
                       <div className="d-flex justify-content-between align-items-center gap-2 flex-wrap">
@@ -438,8 +471,18 @@ export default function ImpostazioniPage() {
                               size="sm"
                               variant="outline-danger"
                               className="btn-danger-soft"
-                              onClick={() => setPendingFamilyDelete({ id: familyItem.id, name: familyItem.name })}
-                              disabled={deleteFamilyMutation.isPending}
+                              onClick={() => {
+                                setPendingFamilyDelete({ id: familyItem.id, name: familyItem.name, isActive: isCurrent });
+                                if (isCurrent && myFamilies?.families?.length) {
+                                  const firstTarget = myFamilies.families.find((f) => f.id !== familyItem.id);
+                                  setTargetFamilyId(firstTarget?.id || '');
+                                } else {
+                                  setTargetFamilyId('');
+                                }
+                                setDeleteFamilyAuthCode('');
+                              }}
+                              disabled={deleteFamilyMutation.isPending || isOnlyFamily}
+                              title={isOnlyFamily ? 'Non puoi eliminare l\'unica famiglia' : undefined}
                             >
                               Elimina Famiglia
                             </Button>
@@ -685,19 +728,108 @@ export default function ImpostazioniPage() {
         }}
       />
 
-      <ConfirmModal
+      <Modal
         show={Boolean(pendingFamilyDelete)}
-        message={`Eliminare la famiglia "${pendingFamilyDelete?.name}" e tutti i suoi dati/membri?`}
-        onCancel={() => setPendingFamilyDelete(null)}
-        requireAuthCode
-        confirmLabel="Elimina Famiglia"
-        onConfirm={(authCode) => {
-          if (pendingFamilyDelete && authCode) {
-            deleteFamilyMutation.mutate({ familyId: pendingFamilyDelete.id, authCode });
-          }
+        onHide={() => {
+          if (deleteFamilyMutation.isPending) return;
           setPendingFamilyDelete(null);
+          setTargetFamilyId('');
+          setDeleteFamilyAuthCode('');
         }}
-      />
+        centered
+        dialogClassName="app-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Elimina Famiglia</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="mb-3">
+            Eliminare la famiglia &quot;{pendingFamilyDelete?.name}&quot; e tutti i suoi dati/membri?
+          </div>
+          {pendingFamilyDelete?.isActive && myFamilies?.families && myFamilies.families.length > 1 && (
+            <Form.Group className="mb-3">
+              <Form.Label>Su quale famiglia vuoi spostarti?</Form.Label>
+              <Form.Select
+                value={targetFamilyId}
+                onChange={(e) => setTargetFamilyId(e.target.value)}
+              >
+                <option value="">Seleziona una famiglia...</option>
+                {myFamilies.families
+                  .filter((f) => f.id !== pendingFamilyDelete.id)
+                  .map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+              </Form.Select>
+            </Form.Group>
+          )}
+          <Form.Group controlId="deleteFamilyAuthCode">
+            <Form.Label>Codice di autenticazione</Form.Label>
+            <InputGroup>
+              <Form.Control
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                id="deleteFamilyAuthCodeInput"
+                placeholder="es: A1B2C"
+                maxLength={5}
+                value={deleteFamilyAuthCode}
+                onChange={(e) => setDeleteFamilyAuthCode(e.target.value)}
+              />
+              <Button
+                type="button"
+                variant="outline-primary"
+                className="btn-primary-soft"
+                onClick={handlePasteDeleteFamilyAuthCode}
+                title="Incolla codice"
+              >
+                <FaPaste />
+              </Button>
+            </InputGroup>
+            <Form.Text className="text-muted">
+              Inserisci il codice a 5 caratteri per confermare.
+            </Form.Text>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-danger"
+            className="btn-danger-soft"
+            onClick={() => {
+              setPendingFamilyDelete(null);
+              setTargetFamilyId('');
+              setDeleteFamilyAuthCode('');
+            }}
+            disabled={deleteFamilyMutation.isPending}
+          >
+            Annulla
+          </Button>
+          <Button
+            variant="primary"
+            disabled={
+              deleteFamilyMutation.isPending ||
+              !/^[A-Z0-9]{5}$/.test(deleteFamilyAuthCode.trim().toUpperCase()) ||
+              (pendingFamilyDelete?.isActive && myFamilies?.families && myFamilies.families.length > 1 && !targetFamilyId)
+            }
+            onClick={() => {
+              const authCode = deleteFamilyAuthCode.trim().toUpperCase();
+              if (pendingFamilyDelete && /^[A-Z0-9]{5}$/.test(authCode)) {
+                deleteFamilyMutation.mutate({
+                  familyId: pendingFamilyDelete.id,
+                  authCode,
+                  targetFamilyId: pendingFamilyDelete.isActive ? targetFamilyId : undefined,
+                });
+                setPendingFamilyDelete(null);
+                setTargetFamilyId('');
+                setDeleteFamilyAuthCode('');
+              }
+            }}
+          >
+            {deleteFamilyMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Elimina Famiglia'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <ConfirmModal
         show={Boolean(pendingLeaveFamily)}

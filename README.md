@@ -101,6 +101,29 @@ Per fermare tutto:
 ./scripts/dev_stop.sh
 ```
 
+## Aggiornamento locale (DB + backend)
+
+Quando introduciamo nuove migrazioni/schema, usa questo script da terminale esterno:
+
+```bash
+./scripts/update_local.sh
+```
+
+Cosa fa:
+- verifica/avvia PostgreSQL 16 locale
+- applica migrazioni (`prisma migrate deploy`)
+- rigenera Prisma Client (`prisma generate`)
+- esegue build backend (`npm run build`)
+- riavvia lo stack dev (`dev_stop.sh` + `dev_start.sh`)
+
+Opzione senza restart:
+
+```bash
+./scripts/update_local.sh --no-restart
+```
+
+Storico modifiche DB: `backend/prisma/DB_CHANGES.md`
+
 ## Configurazione OAuth
 
 ### Google

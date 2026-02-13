@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { Card, Modal, Form, Badge, Spinner, Row, Col, Button } from 'react-bootstrap';
+import { Card, Modal, Form, Badge, Spinner, Row, Col, Button, InputGroup } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { addDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek, subDays } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaTrash, FaFilePdf } from 'react-icons/fa';
+import { FaTrash, FaFilePdf, FaPaste } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, dishesApi } from '@/lib/api';
 import { MealType, DishCategory, MealOut, MealPlan } from '@/types';
@@ -360,6 +360,24 @@ export default function CalendarioPage() {
       setError(err?.message || 'Impossibile salvare le modifiche');
     } finally {
       setSavingDraft(false);
+    }
+  };
+
+  const pasteClearAuthCode = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setClearAuthCode((text || '').trim().toUpperCase().slice(0, 5));
+    } catch (error) {
+      console.error('Failed to paste auth code:', error);
+    }
+  };
+
+  const pasteClearRangeAuthCode = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setClearRangeAuthCode((text || '').trim().toUpperCase().slice(0, 5));
+    } catch (error) {
+      console.error('Failed to paste auth code:', error);
     }
   };
 
@@ -837,13 +855,24 @@ export default function CalendarioPage() {
         Questa azione rimuove tutti i pasti dal calendario. Vuoi continuare?
         <Form.Group className="mt-3" controlId="clearCalendarAuthCode">
           <Form.Label>Codice di autenticazione</Form.Label>
-          <Form.Control
-            type="text"
-            value={clearAuthCode}
-            onChange={(e) => setClearAuthCode(e.target.value)}
-            placeholder="es: A1B2C"
-            maxLength={5}
-          />
+          <InputGroup>
+            <Form.Control
+              type="text"
+              value={clearAuthCode}
+              onChange={(e) => setClearAuthCode(e.target.value)}
+              placeholder="es: A1B2C"
+              maxLength={5}
+            />
+            <Button
+              type="button"
+              variant="outline-primary"
+              className="btn-primary-soft"
+              onClick={pasteClearAuthCode}
+              title="Incolla codice"
+            >
+              <FaPaste />
+            </Button>
+          </InputGroup>
           <Form.Text className="text-muted">
             Inserisci il codice a 5 caratteri per confermare.
           </Form.Text>
@@ -902,13 +931,24 @@ export default function CalendarioPage() {
           </Form>
           <Form.Group className="mt-3" controlId="clearRangeAuthCode">
             <Form.Label>Codice di autenticazione</Form.Label>
-            <Form.Control
-              type="text"
-              value={clearRangeAuthCode}
-              onChange={(e) => setClearRangeAuthCode(e.target.value)}
-              placeholder="es: A1B2C"
-              maxLength={5}
-            />
+            <InputGroup>
+              <Form.Control
+                type="text"
+                value={clearRangeAuthCode}
+                onChange={(e) => setClearRangeAuthCode(e.target.value)}
+                placeholder="es: A1B2C"
+                maxLength={5}
+              />
+              <Button
+                type="button"
+                variant="outline-primary"
+                className="btn-primary-soft"
+                onClick={pasteClearRangeAuthCode}
+                title="Incolla codice"
+              >
+                <FaPaste />
+              </Button>
+            </InputGroup>
             <Form.Text className="text-muted">
               Inserisci il codice a 5 caratteri per confermare.
             </Form.Text>

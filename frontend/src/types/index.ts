@@ -3,6 +3,7 @@ export interface User {
   email: string;
   name: string;
   avatarUrl?: string;
+  authCode?: string;
   oauthProvider: 'google' | 'github' | 'local';
   role?: 'admin' | 'member';
   familyId?: string;

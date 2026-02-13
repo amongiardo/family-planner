@@ -23,6 +23,17 @@ else
   echo "pg_isready not found at $PG_ISREADY. Skipping PostgreSQL start."
 fi
 
+# Clean up lingering node listeners on common dev ports before starting.
+for port in 3000 3001 3002 3003; do
+  if command -v lsof >/dev/null 2>&1; then
+    pids="$(lsof -tiTCP:${port} -sTCP:LISTEN -c node 2>/dev/null || true)"
+    if [[ -n "$pids" ]]; then
+      echo "Stopping existing node processes on port $port: $pids"
+      kill $pids 2>/dev/null || true
+    fi
+  fi
+done
+
 echo "Starting backend..."
 cd "$ROOT_DIR/backend"
 nohup npm run dev > "$LOG_DIR/backend.log" 2>&1 &

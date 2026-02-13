@@ -135,3 +135,11 @@ Changelog
 - 2026-02-13: Creazione famiglia non cambia più automaticamente la famiglia attiva (`switchToNewFamily: false`) e resta in pagina.
 - 2026-02-13: Analisi log pagina bianca: root cause cache/chunk Next corrotti (`Cannot find module './948.js'`, 500/404 su `/_next/static/*`).
 - 2026-02-13: Script `dev_stop.sh` aggiornato per pulire automaticamente `frontend/.next` ed evitare stati cache corrotti al riavvio.
+- 2026-02-13: Auth code azioni distruttive spostato da famiglia a utente/account (stessa email -> stesso codice su tutte le famiglie).
+- 2026-02-13: Nuova migrazione DB `20260213162000_user_auth_code` (`users.auth_code` + backfill codici esistenti).
+- 2026-02-13: Aggiunto `backend/prisma/DB_CHANGES.md` per tracciare in modo centralizzato le modifiche DB.
+- 2026-02-13: Aggiunto script `scripts/update_local.sh` per update locale completo (migrate deploy + generate + build backend + restart opzionale).
+- 2026-02-13: Eliminazione famiglie hardening: ultima famiglia non eliminabile; se elimini famiglia attiva è obbligatoria la scelta famiglia di destinazione (`targetFamilyId`) validata lato backend.
+- 2026-02-13: Impostazioni (elimina famiglia): modale con select destinazione precompilata automaticamente su una famiglia valida.
+- 2026-02-13: UX auth code: aggiunto pulsante `Incolla` in tutti i punti di conferma (ConfirmModal condivisa + modali calendario svuota tutto/intervallo + modale elimina famiglia).
+- 2026-02-13: `scripts/dev_start.sh` ora chiude processi node in ascolto su porte 3000-3003 prima dell'avvio per evitare `EADDRINUSE`.
