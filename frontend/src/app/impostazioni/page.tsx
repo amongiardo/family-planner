@@ -433,7 +433,7 @@ export default function ImpostazioniPage() {
                     <div className="mt-2">
                       {family.users.map((member) => (
                         <div key={member.id} className="text-muted small">
-                          {member.name}
+                          {member.id === user?.id ? 'Io' : member.name} ({member.role === 'admin' ? 'Amministratore' : 'Membro'})
                         </div>
                       ))}
                     </div>

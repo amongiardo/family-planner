@@ -158,3 +158,4 @@ Changelog
 - 2026-02-13: Abbandono famiglia hardening: se l'utente abbandona la famiglia attiva deve selezionare obbligatoriamente una famiglia di destinazione (`targetFamilyId`) valida; enforcement lato backend + modale frontend dedicata.
 - 2026-02-13: Impostazioni: aggiunto box admin "Storico Membri che Hanno Abbandonato" con azione diretta "Fai Rientrare" (nuove API `/api/family/former-members` e `/api/family/former-members/:userId/rejoin`).
 - 2026-02-13: UI ruoli allineata in italiano: `admin` -> `Amministratore`, `member` -> `Membro` (riepilogo impostazioni, liste famiglie/membri, navbar family selector).
+- 2026-02-13: Riepilogo impostazioni (sezione membri): mostrato ruolo tra parentesi per ogni membro e label `Io` al posto del nome dell'utente corrente.
