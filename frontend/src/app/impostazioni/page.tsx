@@ -30,6 +30,8 @@ export default function ImpostazioniPage() {
   const isAdmin = user?.role === 'admin';
   const [familyName, setFamilyName] = useState('');
   const [familyCity, setFamilyCity] = useState('Roma');
+  const [newFamilyName, setNewFamilyName] = useState('');
+  const [newFamilyCity, setNewFamilyCity] = useState('Roma');
   const [inviteEmail, setInviteEmail] = useState('');
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -88,6 +90,22 @@ export default function ImpostazioniPage() {
       setInviteEmail('');
       setSuccess('Invito inviato con successo');
       setTimeout(() => setSuccess(''), 3000);
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
+  const createFamilyMutation = useMutation({
+    mutationFn: familyApi.create,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['family'] });
+      await queryClient.invalidateQueries({ queryKey: ['auth'] });
+      setNewFamilyName('');
+      setNewFamilyCity('Roma');
+      setSuccess('Nuova famiglia creata e impostata come attiva');
+      setTimeout(() => setSuccess(''), 3000);
+      window.location.href = '/dashboard';
     },
     onError: (err: Error) => {
       setError(err.message);
@@ -210,6 +228,51 @@ export default function ImpostazioniPage() {
 
       <Row>
         <Col lg={6}>
+          <Card className="mb-4">
+            <Card.Header>Crea Nuova Famiglia</Card.Header>
+            <Card.Body>
+              <Form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setError('');
+                  if (!newFamilyName.trim()) {
+                    setError('Inserisci il nome della nuova famiglia');
+                    return;
+                  }
+                  createFamilyMutation.mutate({
+                    name: newFamilyName.trim(),
+                    city: newFamilyCity.trim() || 'Roma',
+                    switchToNewFamily: true,
+                  });
+                }}
+              >
+                <Form.Group className="mb-3">
+                  <Form.Label>Nome Famiglia</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={newFamilyName}
+                    onChange={(e) => setNewFamilyName(e.target.value)}
+                    className="placeholder-soft"
+                    placeholder="es: Famiglia Bianchi"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Città</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={newFamilyCity}
+                    onChange={(e) => setNewFamilyCity(e.target.value)}
+                    className="placeholder-soft"
+                    placeholder="es: Roma"
+                  />
+                </Form.Group>
+                <Button type="submit" variant="primary" disabled={createFamilyMutation.isPending}>
+                  {createFamilyMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Crea Famiglia'}
+                </Button>
+              </Form>
+            </Card.Body>
+          </Card>
+
           <Card className="mb-4">
             <Card.Header>Famiglia</Card.Header>
             <Card.Body>

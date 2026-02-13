@@ -1,10 +1,20 @@
 export interface User {
   id: string;
-  familyId: string;
   email: string;
   name: string;
   avatarUrl?: string;
   oauthProvider: 'google' | 'github' | 'local';
+  role?: 'admin' | 'member';
+  familyId?: string;
+  activeFamilyId?: string;
+  families?: UserFamilyMembership[];
+  createdAt: string;
+}
+
+export interface UserFamilyMembership {
+  id: string;
+  name: string;
+  city?: string;
   role: 'admin' | 'member';
   createdAt: string;
 }
@@ -15,6 +25,7 @@ export interface Family {
   city?: string;
   authCode?: string;
   createdAt: string;
+  role?: 'admin' | 'member';
   users: FamilyMember[];
 }
 

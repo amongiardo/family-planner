@@ -2,29 +2,76 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { addDays } from 'date-fns';
 import prisma from '../prisma';
-import { isAuthenticated, getFamilyId } from '../middleware/auth';
+import { isAuthenticated, getFamilyId, getFamilyRole } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles';
 import { requireFamilyAuthCode } from '../middleware/familyAuthCode';
 import { generateFamilyAuthCode } from '../utils/familyAuthCode';
 
 const router = Router();
 
-// Get current family
+function toFamilyResponse(family: any, role: 'admin' | 'member', includeAuthCode: boolean) {
+  return {
+    id: family.id,
+    name: family.name,
+    city: family.city,
+    authCode: includeAuthCode ? family.authCode : undefined,
+    createdAt: family.createdAt,
+    users: (family.memberships || []).map((membership: any) => ({
+      id: membership.user.id,
+      name: membership.user.name,
+      email: membership.user.email,
+      avatarUrl: membership.user.avatarUrl,
+      role: membership.role,
+    })),
+    role,
+  };
+}
+
+type InviteValidationResult =
+  | { ok: true; invite: any }
+  | { ok: false; error: string; status: number };
+
+async function ensureInviteValid(token: string): Promise<InviteValidationResult> {
+  const invite = await prisma.familyInvite.findUnique({
+    where: { token },
+    include: {
+      family: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  if (!invite) return { ok: false, error: 'Invite not found', status: 404 };
+  if (invite.usedAt) return { ok: false, error: 'Invite already used', status: 400 };
+  if (invite.expiresAt < new Date()) return { ok: false, error: 'Invite expired', status: 400 };
+
+  return { ok: true, invite };
+}
+
+// Get active family
 router.get('/', isAuthenticated, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
+    const role = getFamilyRole(req);
 
     let family = await prisma.family.findUnique({
       where: { id: familyId },
       include: {
-        users: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatarUrl: true,
-            role: true,
+        memberships: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatarUrl: true,
+              },
+            },
           },
+          orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
         },
       },
     });
@@ -33,34 +80,144 @@ router.get('/', isAuthenticated, async (req, res, next) => {
       return res.status(404).json({ error: 'Family not found' });
     }
 
-    // Backfill auth code for existing families (only if admin requests it).
-    if (req.user?.role === 'admin' && !family.authCode) {
+    if (role === 'admin' && !family.authCode) {
       family = await prisma.family.update({
         where: { id: familyId },
         data: { authCode: generateFamilyAuthCode(5) },
         include: {
-          users: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              avatarUrl: true,
-              role: true,
+          memberships: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  avatarUrl: true,
+                },
+              },
             },
+            orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
           },
         },
       });
     }
 
-    // Hide authCode from non-admin members.
-    const { authCode, ...safeFamily } = family as any;
-    res.json(req.user?.role === 'admin' ? family : safeFamily);
+    res.json(toFamilyResponse(family, role, role === 'admin'));
   } catch (error) {
     next(error);
   }
 });
 
-// Update family name / city
+// List families for current user
+router.get('/mine', isAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.user!.id;
+    const activeFamilyId = getFamilyId(req);
+
+    const memberships = await prisma.familyMember.findMany({
+      where: { userId },
+      include: {
+        family: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
+    });
+
+    res.json({
+      activeFamilyId,
+      families: memberships.map((m) => ({
+        id: m.family.id,
+        name: m.family.name,
+        city: m.family.city,
+        createdAt: m.family.createdAt,
+        role: m.role,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Switch active family in session
+router.post('/switch', isAuthenticated, async (req, res, next) => {
+  try {
+    const { familyId } = req.body ?? {};
+    if (!familyId || typeof familyId !== 'string') {
+      return res.status(400).json({ error: 'Family ID is required' });
+    }
+
+    const membership = await prisma.familyMember.findUnique({
+      where: {
+        familyId_userId: {
+          familyId,
+          userId: req.user!.id,
+        },
+      },
+      select: { familyId: true },
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: 'Not a member of selected family' });
+    }
+
+    req.session.activeFamilyId = familyId;
+    res.json({ success: true, activeFamilyId: familyId });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create a new family and join as admin
+router.post('/create', isAuthenticated, async (req, res, next) => {
+  try {
+    const { name, city, switchToNewFamily } = req.body ?? {};
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Family name is required' });
+    }
+
+    const family = await prisma.family.create({
+      data: {
+        name: name.trim(),
+        city: typeof city === 'string' && city.trim() ? city.trim() : 'Roma',
+        authCode: generateFamilyAuthCode(5),
+      },
+    });
+
+    await prisma.familyMember.create({
+      data: {
+        familyId: family.id,
+        userId: req.user!.id,
+        role: 'admin',
+      },
+    });
+
+    const shouldSwitch = switchToNewFamily !== false;
+    if (shouldSwitch) {
+      req.session.activeFamilyId = family.id;
+    }
+
+    res.status(201).json({
+      family: {
+        id: family.id,
+        name: family.name,
+        city: family.city,
+        createdAt: family.createdAt,
+        role: 'admin',
+      },
+      activeFamilyId: shouldSwitch ? family.id : req.session.activeFamilyId,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update active family name / city
 router.put('/', isAuthenticated, requireAdmin, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
@@ -73,7 +230,7 @@ router.put('/', isAuthenticated, requireAdmin, async (req, res, next) => {
     const family = await prisma.family.update({
       where: { id: familyId },
       data: {
-        ...(name && typeof name === 'string' ? { name } : {}),
+        ...(name && typeof name === 'string' ? { name: name.trim() } : {}),
         ...(city && typeof city === 'string' ? { city: city.trim() } : {}),
       },
     });
@@ -84,7 +241,7 @@ router.put('/', isAuthenticated, requireAdmin, async (req, res, next) => {
   }
 });
 
-// Regenerate destructive-action auth code (admin only)
+// Regenerate destructive-action auth code (active family, admin only)
 router.post('/auth-code/regenerate', isAuthenticated, requireAdmin, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
@@ -100,7 +257,7 @@ router.post('/auth-code/regenerate', isAuthenticated, requireAdmin, async (req, 
   }
 });
 
-// Create invite
+// Create invite for active family
 router.post('/invite', isAuthenticated, requireAdmin, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
@@ -110,26 +267,29 @@ router.post('/invite', isAuthenticated, requireAdmin, async (req, res, next) => 
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Check if user already exists in this family
-    const existingUser = await prisma.user.findFirst({
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const alreadyMember = await prisma.familyMember.findFirst({
       where: {
-        email,
         familyId,
+        user: {
+          email: normalizedEmail,
+        },
       },
+      select: { id: true },
     });
 
-    if (existingUser) {
+    if (alreadyMember) {
       return res.status(400).json({ error: 'User already in family' });
     }
 
-    // Create invite token
     const token = uuidv4();
     const expiresAt = addDays(new Date(), 7);
 
     const invite = await prisma.familyInvite.create({
       data: {
         familyId,
-        email,
+        email: normalizedEmail,
         token,
         expiresAt,
       },
@@ -150,7 +310,7 @@ router.post('/invite', isAuthenticated, requireAdmin, async (req, res, next) => 
   }
 });
 
-// Get pending invites
+// Get pending invites for active family
 router.get('/invites', isAuthenticated, requireAdmin, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
@@ -168,6 +328,7 @@ router.get('/invites', isAuthenticated, requireAdmin, async (req, res, next) => 
         createdAt: true,
         token: true,
       },
+      orderBy: { createdAt: 'desc' },
     });
 
     const baseUrl = process.env.FRONTEND_URL;
@@ -201,7 +362,53 @@ router.delete('/invites/:id', isAuthenticated, requireAdmin, requireFamilyAuthCo
   }
 });
 
-// Update member role (admin only)
+// Accept invite for an already authenticated user
+router.post('/invite/:token/accept', isAuthenticated, async (req, res, next) => {
+  try {
+    const user = req.user!;
+    const { token } = req.params;
+
+    const result = await ensureInviteValid(token);
+    if (!result.ok) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    const invite = result.invite;
+
+    if (invite.email.toLowerCase() !== user.email.toLowerCase()) {
+      return res.status(403).json({ error: 'Invite email does not match current user' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.familyMember.upsert({
+        where: {
+          familyId_userId: {
+            familyId: invite.familyId,
+            userId: user.id,
+          },
+        },
+        update: {},
+        create: {
+          familyId: invite.familyId,
+          userId: user.id,
+          role: 'member',
+        },
+      });
+
+      await tx.familyInvite.update({
+        where: { id: invite.id },
+        data: { usedAt: new Date() },
+      });
+    });
+
+    req.session.activeFamilyId = invite.familyId;
+    res.json({ success: true, activeFamilyId: invite.familyId });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update member role in active family (admin only)
 router.put('/members/:userId/role', isAuthenticated, requireAdmin, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
@@ -212,18 +419,22 @@ router.put('/members/:userId/role', isAuthenticated, requireAdmin, async (req, r
       return res.status(400).json({ error: 'Invalid role' });
     }
 
-    const target = await prisma.user.findFirst({
-      where: { id: userId, familyId },
-      select: { id: true, role: true },
+    const target = await prisma.familyMember.findUnique({
+      where: {
+        familyId_userId: {
+          familyId,
+          userId,
+        },
+      },
+      select: { userId: true, role: true },
     });
 
     if (!target) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'User not found in family' });
     }
 
-    // Prevent demoting the last admin of the family.
     if (target.role === 'admin' && role === 'member') {
-      const adminCount = await prisma.user.count({
+      const adminCount = await prisma.familyMember.count({
         where: { familyId, role: 'admin' },
       });
       if (adminCount <= 1) {
@@ -231,46 +442,34 @@ router.put('/members/:userId/role', isAuthenticated, requireAdmin, async (req, r
       }
     }
 
-    const updated = await prisma.user.update({
-      where: { id: userId },
+    const updated = await prisma.familyMember.update({
+      where: {
+        familyId_userId: {
+          familyId,
+          userId,
+        },
+      },
       data: { role },
-      select: { id: true, role: true },
+      select: { userId: true, role: true },
     });
 
-    res.json({ user: updated });
+    res.json({ user: { id: updated.userId, role: updated.role } });
   } catch (error) {
     next(error);
   }
 });
 
-// Validate invite token (public route)
+// Validate invite token (public)
 router.get('/invite/:token', async (req, res, next) => {
   try {
     const { token } = req.params;
 
-    const invite = await prisma.familyInvite.findUnique({
-      where: { token },
-      include: {
-        family: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    if (!invite) {
-      return res.status(404).json({ error: 'Invite not found' });
+    const result = await ensureInviteValid(token);
+    if (!result.ok) {
+      return res.status(result.status).json({ error: result.error });
     }
 
-    if (invite.usedAt) {
-      return res.status(400).json({ error: 'Invite already used' });
-    }
-
-    if (invite.expiresAt < new Date()) {
-      return res.status(400).json({ error: 'Invite expired' });
-    }
+    const invite = result.invite;
 
     res.json({
       email: invite.email,

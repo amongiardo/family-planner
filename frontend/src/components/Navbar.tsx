@@ -2,10 +2,22 @@
 
 import { Navbar as BsNavbar, Container, Nav, NavDropdown, Image } from 'react-bootstrap';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
+import { familyApi } from '@/lib/api';
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const router = useRouter();
+  const { user, logout, refresh } = useAuth();
+
+  const activeFamily = user?.families?.find((family) => family.id === user.activeFamilyId);
+
+  const handleSwitchFamily = async (familyId: string) => {
+    if (!user || familyId === user.activeFamilyId) return;
+    await familyApi.switchActive(familyId);
+    await refresh();
+    router.refresh();
+  };
 
   return (
     <BsNavbar expand="lg" className="app-navbar shadow-sm">
@@ -21,6 +33,23 @@ export default function Navbar() {
 
         <BsNavbar.Collapse id="navbar-nav" className="justify-content-end">
           <Nav>
+            {user?.families && user.families.length > 0 && (
+              <NavDropdown
+                title={`Famiglia: ${activeFamily?.name ?? user.families[0].name}`}
+                id="family-dropdown"
+                align="end"
+              >
+                {user.families.map((family) => (
+                  <NavDropdown.Item
+                    key={family.id}
+                    active={family.id === user.activeFamilyId}
+                    onClick={() => handleSwitchFamily(family.id)}
+                  >
+                    {family.name} ({family.role === 'admin' ? 'Admin' : 'Member'})
+                  </NavDropdown.Item>
+                ))}
+              </NavDropdown>
+            )}
             {user && (
               <NavDropdown
                 title={

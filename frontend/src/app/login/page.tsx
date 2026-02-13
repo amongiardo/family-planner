@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Form } from 'react-bootstrap';
 import { useAuth } from '@/lib/AuthContext';
-import { authApi } from '@/lib/api';
+import { authApi, familyApi } from '@/lib/api';
 import StatusModal from '@/components/StatusModal';
 
 function LoginPageContent() {
@@ -37,6 +37,9 @@ function LoginPageContent() {
     try {
       if (mode === 'login') {
         await authApi.loginLocal({ email: form.email, password: form.password });
+        if (inviteToken) {
+          await familyApi.acceptInvite(inviteToken);
+        }
       } else {
         if (form.password !== form.passwordConfirm) {
           setLocalError('Le password non coincidono');

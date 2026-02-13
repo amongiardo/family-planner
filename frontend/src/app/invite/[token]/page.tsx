@@ -11,13 +11,14 @@ import StatusModal from '@/components/StatusModal';
 export default function InvitePage() {
   const params = useParams();
   const router = useRouter();
-  const { refresh } = useAuth();
+  const { user, refresh, logout } = useAuth();
   const token = params.token as string;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [showInviteInfo, setShowInviteInfo] = useState(false);
+  const [acceptingInvite, setAcceptingInvite] = useState(false);
   const [form, setForm] = useState({ name: '', password: '', passwordConfirm: '' });
   const [inviteData, setInviteData] = useState<{
     email: string;
@@ -76,6 +77,21 @@ export default function InvitePage() {
     }
   };
 
+  const handleAcceptInvite = async () => {
+    if (!inviteData) return;
+    setAcceptingInvite(true);
+    setLocalError(null);
+    try {
+      await familyApi.acceptInvite(token);
+      await refresh();
+      router.push('/dashboard');
+    } catch (err: any) {
+      setLocalError(err?.message || 'Impossibile accettare l’invito');
+    } finally {
+      setAcceptingInvite(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="login-page">
@@ -124,63 +140,103 @@ export default function InvitePage() {
           onClose={() => setShowInviteInfo(false)}
         />
 
-        {/* Pulsanti OAuth nascosti per sviluppi futuri */}
-
         <StatusModal
           show={Boolean(localError)}
           variant="danger"
           message={localError || ''}
           onClose={() => setLocalError(null)}
         />
+        {user ? (
+          user.email.toLowerCase() === inviteData.email.toLowerCase() ? (
+            <div className="text-start">
+              <Form.Group className="mb-3" controlId="inviteEmailLogged">
+                <Form.Label>Email</Form.Label>
+                <Form.Control type="email" value={inviteData.email} disabled />
+              </Form.Group>
+              <div className="d-grid gap-2">
+                <Button variant="success" onClick={handleAcceptInvite} disabled={acceptingInvite}>
+                  {acceptingInvite ? <Spinner size="sm" animation="border" /> : 'Accetta Invito'}
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  onClick={async () => {
+                    await refresh();
+                    router.push('/dashboard');
+                  }}
+                >
+                  Annulla
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-start">
+              <p className="text-muted small">
+                Sei autenticato come <strong>{user.email}</strong>, ma questo invito è per{' '}
+                <strong>{inviteData.email}</strong>.
+              </p>
+              <div className="d-grid gap-2">
+                <Button
+                  variant="primary"
+                  onClick={async () => {
+                    await logout();
+                    router.push(`/login?invite=${token}`);
+                  }}
+                >
+                  Esci e Accedi con email corretta
+                </Button>
+              </div>
+            </div>
+          )
+        ) : (
+          <Form onSubmit={handleLocalRegister} className="text-start">
+            <Form.Group className="mb-3" controlId="inviteEmail">
+              <Form.Label>Email</Form.Label>
+              <Form.Control type="email" value={inviteData.email} disabled />
+            </Form.Group>
 
-        <Form onSubmit={handleLocalRegister} className="text-start">
-          <Form.Group className="mb-3" controlId="inviteEmail">
-            <Form.Label>Email</Form.Label>
-            <Form.Control type="email" value={inviteData.email} disabled />
-          </Form.Group>
+            <Form.Group className="mb-3" controlId="inviteName">
+              <Form.Label>Nome</Form.Label>
+              <Form.Control
+                type="text"
+                className="placeholder-soft"
+                placeholder="es: Il tuo nome"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+            </Form.Group>
 
-          <Form.Group className="mb-3" controlId="inviteName">
-            <Form.Label>Nome</Form.Label>
-            <Form.Control
-              type="text"
-              className="placeholder-soft"
-              placeholder="es: Il tuo nome"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-          </Form.Group>
+            <Form.Group className="mb-3" controlId="invitePassword">
+              <Form.Label>Password</Form.Label>
+              <Form.Control
+                type="password"
+                className="placeholder-soft"
+                placeholder="es: ••••••••"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                required
+              />
+            </Form.Group>
 
-          <Form.Group className="mb-3" controlId="invitePassword">
-            <Form.Label>Password</Form.Label>
-            <Form.Control
-              type="password"
-              className="placeholder-soft"
-              placeholder="es: ••••••••"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-            />
-          </Form.Group>
+            <Form.Group className="mb-3" controlId="invitePasswordConfirm">
+              <Form.Label>Conferma Password</Form.Label>
+              <Form.Control
+                type="password"
+                className="placeholder-soft"
+                placeholder="es: ••••••••"
+                value={form.passwordConfirm}
+                onChange={(e) => setForm({ ...form, passwordConfirm: e.target.value })}
+                required
+              />
+            </Form.Group>
 
-          <Form.Group className="mb-3" controlId="invitePasswordConfirm">
-            <Form.Label>Conferma Password</Form.Label>
-            <Form.Control
-              type="password"
-              className="placeholder-soft"
-              placeholder="es: ••••••••"
-              value={form.passwordConfirm}
-              onChange={(e) => setForm({ ...form, passwordConfirm: e.target.value })}
-              required
-            />
-          </Form.Group>
-
-          <div className="d-grid">
-            <Button variant="success" type="submit" disabled={submitting}>
-              Crea Account e Entra
-            </Button>
-          </div>
-        </Form>
+            <div className="d-grid">
+              <Button variant="success" type="submit" disabled={submitting}>
+                Crea Account e Entra
+              </Button>
+            </div>
+          </Form>
+        )}
       </Card>
     </div>
   );

@@ -11,6 +11,36 @@ interface OAuthProfile {
   photos?: Array<{ value: string }>;
 }
 
+async function attachInviteMembership(userId: string, email: string, inviteToken?: string) {
+  if (!inviteToken) return;
+
+  const invite = await prisma.familyInvite.findUnique({ where: { token: inviteToken } });
+  if (!invite || invite.usedAt || invite.expiresAt <= new Date()) return;
+  if (invite.email.toLowerCase() !== email.toLowerCase()) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.familyMember.upsert({
+      where: {
+        familyId_userId: {
+          familyId: invite.familyId,
+          userId,
+        },
+      },
+      update: {},
+      create: {
+        familyId: invite.familyId,
+        userId,
+        role: 'member',
+      },
+    });
+
+    await tx.familyInvite.update({
+      where: { id: invite.id },
+      data: { usedAt: new Date() },
+    });
+  });
+}
+
 async function findOrCreateUser(
   provider: 'google' | 'github',
   profile: OAuthProfile,
@@ -21,85 +51,71 @@ async function findOrCreateUser(
     throw new Error('Email not provided by OAuth provider');
   }
 
-  // Check if user exists
+  // Prefer provider match, fallback to existing account with same email.
   let user = await prisma.user.findFirst({
     where: {
-      oauthProvider: provider,
-      oauthId: profile.id,
+      OR: [
+        { oauthProvider: provider, oauthId: profile.id },
+        { email },
+      ],
     },
   });
 
-  if (user) {
-    return user;
-  }
-
-  // Check for invite token
-  let familyId: string | undefined;
-  let role: 'admin' | 'member' = 'admin';
-
-  if (inviteToken) {
-    const invite = await prisma.familyInvite.findUnique({
-      where: { token: inviteToken },
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        email,
+        name: profile.displayName,
+        avatarUrl: profile.photos?.[0]?.value,
+        oauthProvider: provider,
+        oauthId: profile.id,
+      },
     });
 
-    if (invite && !invite.usedAt && invite.expiresAt > new Date() && invite.email === email) {
-      familyId = invite.familyId;
-      role = 'member';
-
-      // Mark invite as used
-      await prisma.familyInvite.update({
-        where: { id: invite.id },
-        data: { usedAt: new Date() },
-      });
-    }
-  }
-
-  // Create new family if no invite
-  if (!familyId) {
     const family = await prisma.family.create({
       data: {
         name: `${profile.displayName}'s Family`,
         authCode: generateFamilyAuthCode(5),
       },
     });
-    familyId = family.id;
+
+    await prisma.familyMember.create({
+      data: {
+        familyId: family.id,
+        userId: user.id,
+        role: 'admin',
+      },
+    });
+  } else {
+    // Keep existing account and refresh profile metadata.
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        name: user.name || profile.displayName,
+        avatarUrl: profile.photos?.[0]?.value || user.avatarUrl,
+      },
+    });
   }
 
-  // Create user
-  user = await prisma.user.create({
-    data: {
-      familyId,
-      email,
-      name: profile.displayName,
-      avatarUrl: profile.photos?.[0]?.value,
-      oauthProvider: provider,
-      oauthId: profile.id,
-      role,
-    },
-  });
+  await attachInviteMembership(user.id, email, inviteToken);
 
   return user;
 }
 
 export function configurePassport() {
-  // Serialize user to session
   passport.serializeUser((user: any, done) => {
     done(null, user.id);
   });
 
-  // Deserialize user from session
   passport.deserializeUser(async (id: string, done) => {
     try {
-      const user = await prisma.user.findUnique({
-        where: { id },
-      });
+      const user = await prisma.user.findUnique({ where: { id } });
       done(null, user);
     } catch (error) {
       done(error);
     }
   });
 
-  // Google Strategy
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     passport.use(
       new GoogleStrategy(
@@ -123,7 +139,6 @@ export function configurePassport() {
     );
   }
 
-  // GitHub Strategy
   if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
     passport.use(
       new GitHubStrategy(
@@ -142,9 +157,9 @@ export function configurePassport() {
           done: (error: Error | null, user?: any) => void
         ) => {
           try {
-            const inviteToken = (req.session as any)?.inviteToken;
+            const inviteToken = req.session?.inviteToken;
             const user = await findOrCreateUser('github', profile, inviteToken);
-            delete (req.session as any)?.inviteToken;
+            delete req.session?.inviteToken;
             done(null, user);
           } catch (error) {
             done(error as Error);
@@ -155,9 +170,9 @@ export function configurePassport() {
   }
 }
 
-// Extend session type for invite token
 declare module 'express-session' {
   interface SessionData {
     inviteToken?: string;
+    activeFamilyId?: string;
   }
 }

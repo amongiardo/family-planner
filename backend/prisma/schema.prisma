@@ -14,7 +14,7 @@ model Family {
   authCode  String?  @map("auth_code") @db.VarChar(5)
   createdAt DateTime @default(now()) @map("created_at")
 
-  users         User[]
+  memberships   FamilyMember[]
   dishes        Dish[]
   mealPlans     MealPlan[]
   mealOuts      MealOut[]
@@ -24,27 +24,40 @@ model Family {
   @@map("families")
 }
 
-enum UserRole {
+enum FamilyRole {
   admin
   member
 }
 
 model User {
   id            String   @id @default(uuid())
-  familyId      String   @map("family_id")
   email         String   @unique
   name          String
   avatarUrl     String?  @map("avatar_url")
   passwordHash  String?  @map("password_hash")
   oauthProvider String   @map("oauth_provider")
   oauthId       String   @map("oauth_id")
-  role          UserRole @default(admin)
   createdAt     DateTime @default(now()) @map("created_at")
 
-  family Family @relation(fields: [familyId], references: [id])
+  memberships FamilyMember[]
 
   @@unique([oauthProvider, oauthId])
   @@map("users")
+}
+
+model FamilyMember {
+  id        String     @id @default(uuid())
+  familyId  String     @map("family_id")
+  userId    String     @map("user_id")
+  role      FamilyRole @default(member)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, userId])
+  @@index([userId])
+  @@map("family_members")
 }
 
 enum DishCategory {

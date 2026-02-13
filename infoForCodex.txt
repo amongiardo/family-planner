@@ -1,5 +1,5 @@
 INFO FOR CODEX
-Ultimo aggiornamento: 2026-02-12
+Ultimo aggiornamento: 2026-02-13
 
 Scopo del progetto
 Family Planner è una web app per l’organizzazione familiare, con focus su pasti, calendario e lista spesa. Consente di pianificare pranzi e cene su calendario, gestire un catalogo piatti con ingredienti, generare la lista della spesa e suggerire pasti per evitare ripetizioni e mantenere un’alimentazione bilanciata. Supporta l’uso multi‑famiglia con inviti e dati isolati per nucleo.
@@ -120,3 +120,9 @@ Changelog
 - 2026-02-12: Frontend build hardening: sostituito `next/font/google` con `next/font/local` per Nunito (asset locali in `frontend/src/app/fonts/nunito`) per evitare dipendenza rete durante `next build`.
 - 2026-02-12: Aggiunto script `scripts/install_nunito_local.sh` per installazione/copia automatica dei file font locali.
 - 2026-02-12: Fix build Next.js su `/login`: `useSearchParams()` ora incapsulato in `Suspense` in `frontend/src/app/login/page.tsx`.
+- 2026-02-13: Refactor multi-famiglia completo: introdotta membership utente↔famiglia con ruoli per famiglia (`family_members`) e rimosso vincolo 1 utente = 1 famiglia.
+- 2026-02-13: Sessione con famiglia attiva (`activeFamilyId`) e supporto switch famiglia lato API/UI.
+- 2026-02-13: Nuove API famiglia: lista famiglie utente (`/api/family/mine`), switch attiva (`/api/family/switch`), creazione nuova famiglia da account esistente (`/api/family/create`), accettazione invito da utente gia registrato (`/api/family/invite/:token/accept`).
+- 2026-02-13: Login/inviti aggiornati per supportare la stessa email su piu famiglie (join a famiglia invitante senza creare un nuovo account).
+- 2026-02-13: Navbar aggiornata con selettore famiglia attiva; Impostazioni aggiornate con creazione nuova famiglia.
+- 2026-02-13: Build verificate dopo refactor: backend (`tsc`) e frontend (`next build`) OK.

@@ -51,6 +51,24 @@ export const authApi = {
 // Family
 export const familyApi = {
   get: () => fetchApi<Family>('/api/family'),
+  mine: () =>
+    fetchApi<{
+      activeFamilyId: string;
+      families: { id: string; name: string; city?: string; role: 'admin' | 'member'; createdAt: string }[];
+    }>('/api/family/mine'),
+  switchActive: (familyId: string) =>
+    fetchApi<{ success: boolean; activeFamilyId: string }>('/api/family/switch', {
+      method: 'POST',
+      body: JSON.stringify({ familyId }),
+    }),
+  create: (data: { name: string; city?: string; switchToNewFamily?: boolean }) =>
+    fetchApi<{
+      family: { id: string; name: string; city?: string; createdAt: string; role: 'admin' | 'member' };
+      activeFamilyId: string;
+    }>('/api/family/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   update: (data: { name?: string; city?: string }) => fetchApi<Family>('/api/family', {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -71,6 +89,10 @@ export const familyApi = {
     method: 'DELETE',
     headers: authCodeHeaders(authCode),
   }),
+  acceptInvite: (token: string) =>
+    fetchApi<{ success: boolean; activeFamilyId: string }>(`/api/family/invite/${token}/accept`, {
+      method: 'POST',
+    }),
   validateInvite: (token: string) => fetchApi<{ email: string; family: { id: string; name: string } }>(`/api/family/invite/${token}`),
 };
 
