@@ -30,6 +30,13 @@ stop_pid() {
 stop_pid "frontend"
 stop_pid "backend"
 
+# Clear Next.js build/dev cache to avoid stale/missing chunk errors on next start.
+NEXT_CACHE_DIR="$ROOT_DIR/frontend/.next"
+if [[ -d "$NEXT_CACHE_DIR" ]]; then
+  echo "Clearing frontend cache: $NEXT_CACHE_DIR"
+  rm -rf "$NEXT_CACHE_DIR"
+fi
+
 # Clean up any lingering node processes on dev ports (fallback)
 for port in 3000 3001 3002 3003; do
   if command -v lsof >/dev/null 2>&1; then

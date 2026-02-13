@@ -3,11 +3,13 @@
 import { Navbar as BsNavbar, Container, Nav, NavDropdown, Image } from 'react-bootstrap';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { familyApi } from '@/lib/api';
 
 export default function Navbar() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, logout, refresh } = useAuth();
 
   const activeFamily = user?.families?.find((family) => family.id === user.activeFamilyId);
@@ -15,6 +17,10 @@ export default function Navbar() {
   const handleSwitchFamily = async (familyId: string) => {
     if (!user || familyId === user.activeFamilyId) return;
     await familyApi.switchActive(familyId);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('activeFamilyId', familyId);
+    }
+    queryClient.clear();
     await refresh();
     router.refresh();
   };

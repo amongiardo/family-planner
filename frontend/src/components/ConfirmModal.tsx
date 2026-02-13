@@ -61,7 +61,7 @@ export default function ConfirmModal({
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="outline-primary" onClick={onCancel}>
+        <Button variant="outline-danger" className="btn-danger-soft" onClick={onCancel}>
           {cancelLabel}
         </Button>
         <Button

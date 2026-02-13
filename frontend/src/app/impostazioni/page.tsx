@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   Button,
   Form,
+  Modal,
   ListGroup,
   Spinner,
   InputGroup,
@@ -26,32 +28,27 @@ import type { Family } from '@/types';
 
 export default function ImpostazioniPage() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, refresh } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [familyName, setFamilyName] = useState('');
-  const [familyCity, setFamilyCity] = useState('Roma');
+  const [familyCity, setFamilyCity] = useState('');
   const [newFamilyName, setNewFamilyName] = useState('');
-  const [newFamilyCity, setNewFamilyCity] = useState('Roma');
+  const [newFamilyCity, setNewFamilyCity] = useState('');
+  const [showCreateFamilyModal, setShowCreateFamilyModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [pendingInviteDelete, setPendingInviteDelete] = useState<string | null>(null);
+  const [pendingFamilyDelete, setPendingFamilyDelete] = useState<{ id: string; name: string } | null>(null);
+  const [pendingLeaveFamily, setPendingLeaveFamily] = useState<{ id: string; name: string } | null>(null);
+  const [pendingForgetFamily, setPendingForgetFamily] = useState<{ id: string; name: string } | null>(null);
 
   const { data: family, isLoading } = useQuery<Family>({
     queryKey: ['family'],
     queryFn: familyApi.get,
   });
-
-  useEffect(() => {
-    if (!family) return;
-    if (!familyName) {
-      setFamilyName(family.name);
-    }
-    if (family.city) {
-      setFamilyCity(family.city);
-    }
-  }, [family, familyName]);
 
   const { data: invites, isLoading: invitesLoading } = useQuery({
     queryKey: ['invites'],
@@ -59,11 +56,16 @@ export default function ImpostazioniPage() {
     enabled: isAdmin,
   });
 
+  const { data: myFamilies, isLoading: familiesLoading } = useQuery({
+    queryKey: ['family', 'mine'],
+    queryFn: familyApi.mine,
+  });
+
   const updateFamilyMutation = useMutation({
     mutationFn: familyApi.update,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['family'] });
-      setSuccess('Nome famiglia aggiornato');
+      setSuccess('Famiglia aggiornata');
       setTimeout(() => setSuccess(''), 3000);
     },
     onError: (err: Error) => {
@@ -98,14 +100,20 @@ export default function ImpostazioniPage() {
 
   const createFamilyMutation = useMutation({
     mutationFn: familyApi.create,
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      if (typeof window !== 'undefined' && data.activeFamilyId) {
+        window.localStorage.setItem('activeFamilyId', data.activeFamilyId);
+      }
       await queryClient.invalidateQueries({ queryKey: ['family'] });
+      await queryClient.invalidateQueries({ queryKey: ['family', 'mine'] });
       await queryClient.invalidateQueries({ queryKey: ['auth'] });
+      await refresh();
       setNewFamilyName('');
-      setNewFamilyCity('Roma');
-      setSuccess('Nuova famiglia creata e impostata come attiva');
+      setNewFamilyCity('');
+      setShowCreateFamilyModal(false);
+      setSuccess('Nuova famiglia creata');
       setTimeout(() => setSuccess(''), 3000);
-      window.location.href = '/dashboard';
+      router.refresh();
     },
     onError: (err: Error) => {
       setError(err.message);
@@ -133,16 +141,90 @@ export default function ImpostazioniPage() {
     },
   });
 
-  const handleUpdateFamily = (e: React.FormEvent) => {
-    e.preventDefault();
+  const deleteFamilyMutation = useMutation({
+    mutationFn: ({ familyId, authCode }: { familyId: string; authCode: string }) =>
+      familyApi.deleteFamily(familyId, authCode),
+    onSuccess: async (data) => {
+      if (typeof window !== 'undefined') {
+        if (data.activeFamilyId) {
+          window.localStorage.setItem('activeFamilyId', data.activeFamilyId);
+        } else {
+          window.localStorage.removeItem('activeFamilyId');
+        }
+      }
+      await refresh();
+      queryClient.clear();
+      setSuccess('Famiglia eliminata');
+      setTimeout(() => setSuccess(''), 3000);
+      router.replace('/dashboard');
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const leaveFamilyMutation = useMutation({
+    mutationFn: (familyId: string) => familyApi.leaveFamily(familyId),
+    onSuccess: async (data) => {
+      if (typeof window !== 'undefined') {
+        if (data.activeFamilyId) {
+          window.localStorage.setItem('activeFamilyId', data.activeFamilyId);
+        } else {
+          window.localStorage.removeItem('activeFamilyId');
+        }
+      }
+      await refresh();
+      queryClient.clear();
+      setSuccess('Hai abbandonato la famiglia');
+      setTimeout(() => setSuccess(''), 3000);
+      router.replace('/dashboard');
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const rejoinFamilyMutation = useMutation({
+    mutationFn: (familyId: string) => familyApi.rejoinFamily(familyId),
+    onSuccess: async (data) => {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('activeFamilyId', data.activeFamilyId);
+      }
+      await refresh();
+      queryClient.clear();
+      setSuccess('Rientro in famiglia completato');
+      setTimeout(() => setSuccess(''), 3000);
+      router.replace('/dashboard');
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const forgetFamilyMutation = useMutation({
+    mutationFn: (familyId: string) => familyApi.forgetFormerFamily(familyId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['family', 'mine'] });
+      setSuccess('Famiglia rimossa dallo storico');
+      setTimeout(() => setSuccess(''), 3000);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const handleUpdateFamilyName = () => {
     setError('');
     if (!isAdmin) {
       setError('Solo l’amministratore può modificare le impostazioni della famiglia');
       return;
     }
-    if (familyName.trim() || familyCity.trim()) {
-      updateFamilyMutation.mutate({ name: familyName.trim(), city: familyCity.trim() });
+    if (!familyName.trim()) return;
+    updateFamilyMutation.mutate({ name: familyName.trim() });
+    setFamilyName('');
+  };
+
+  const handleUpdateFamilyCity = () => {
+    setError('');
+    if (!isAdmin) {
+      setError('Solo l’amministratore può modificare le impostazioni della famiglia');
+      return;
     }
+    if (!familyCity.trim()) return;
+    updateFamilyMutation.mutate({ city: familyCity.trim() });
+    setFamilyCity('');
   };
 
   const handleInvite = (e: React.FormEvent) => {
@@ -183,7 +265,12 @@ export default function ImpostazioniPage() {
 
   return (
     <DashboardLayout>
-      <h2 className="mb-4 page-title">Impostazioni</h2>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="page-title mb-0">Impostazioni</h2>
+        <Button variant="primary" onClick={() => setShowCreateFamilyModal(true)}>
+          Aggiungi Famiglia
+        </Button>
+      </div>
 
       <StatusModal
         show={Boolean(error)}
@@ -229,55 +316,10 @@ export default function ImpostazioniPage() {
       <Row>
         <Col lg={6}>
           <Card className="mb-4">
-            <Card.Header>Crea Nuova Famiglia</Card.Header>
-            <Card.Body>
-              <Form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setError('');
-                  if (!newFamilyName.trim()) {
-                    setError('Inserisci il nome della nuova famiglia');
-                    return;
-                  }
-                  createFamilyMutation.mutate({
-                    name: newFamilyName.trim(),
-                    city: newFamilyCity.trim() || 'Roma',
-                    switchToNewFamily: true,
-                  });
-                }}
-              >
-                <Form.Group className="mb-3">
-                  <Form.Label>Nome Famiglia</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={newFamilyName}
-                    onChange={(e) => setNewFamilyName(e.target.value)}
-                    className="placeholder-soft"
-                    placeholder="es: Famiglia Bianchi"
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Città</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={newFamilyCity}
-                    onChange={(e) => setNewFamilyCity(e.target.value)}
-                    className="placeholder-soft"
-                    placeholder="es: Roma"
-                  />
-                </Form.Group>
-                <Button type="submit" variant="primary" disabled={createFamilyMutation.isPending}>
-                  {createFamilyMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Crea Famiglia'}
-                </Button>
-              </Form>
-            </Card.Body>
-          </Card>
-
-          <Card className="mb-4">
-            <Card.Header>Famiglia</Card.Header>
+            <Card.Header>Modifica Famiglia</Card.Header>
             <Card.Body>
               {isAdmin ? (
-                <Form onSubmit={handleUpdateFamily}>
+                <Form>
                 <Form.Group className="mb-3">
                   <Form.Label>Nome Famiglia</Form.Label>
                   <InputGroup>
@@ -286,12 +328,13 @@ export default function ImpostazioniPage() {
                       value={familyName}
                       onChange={(e) => setFamilyName(e.target.value)}
                       className="placeholder-soft"
-                      placeholder="es: Nome della famiglia"
+                      placeholder={family?.name ? `Attuale: ${family.name}` : 'es: Nome della famiglia'}
                     />
                     <Button
-                      type="submit"
+                      type="button"
                       variant="primary"
-                      disabled={updateFamilyMutation.isPending}
+                      disabled={updateFamilyMutation.isPending || !familyName.trim()}
+                      onClick={handleUpdateFamilyName}
                     >
                       {updateFamilyMutation.isPending ? (
                         <Spinner size="sm" animation="border" />
@@ -309,12 +352,13 @@ export default function ImpostazioniPage() {
                       value={familyCity}
                       onChange={(e) => setFamilyCity(e.target.value)}
                       className="placeholder-soft"
-                      placeholder="es: Roma"
+                      placeholder={family?.city ? `Attuale: ${family.city}` : 'es: Roma'}
                     />
                     <Button
-                      type="submit"
+                      type="button"
                       variant="primary"
-                      disabled={updateFamilyMutation.isPending}
+                      disabled={updateFamilyMutation.isPending || !familyCity.trim()}
+                      onClick={handleUpdateFamilyCity}
                     >
                       {updateFamilyMutation.isPending ? (
                         <Spinner size="sm" animation="border" />
@@ -338,8 +382,7 @@ export default function ImpostazioniPage() {
                     <Form.Control
                       type="text"
                       value={family?.authCode || ''}
-                      readOnly
-                      className="placeholder-soft"
+                      disabled
                       placeholder="—"
                     />
                     <Button
@@ -363,6 +406,113 @@ export default function ImpostazioniPage() {
             </Card.Body>
           </Card>
 
+          <Card className="mb-4 settings-card">
+            <Card.Header>Tutte le famiglie</Card.Header>
+            {familiesLoading ? (
+              <Card.Body className="text-center">
+                <Spinner size="sm" animation="border" variant="success" />
+              </Card.Body>
+            ) : myFamilies?.families?.length ? (
+              <ListGroup variant="flush" className="settings-list">
+                {myFamilies.families.map((familyItem) => {
+                  const isCurrent = familyItem.id === user?.activeFamilyId;
+                  return (
+                    <ListGroup.Item key={familyItem.id}>
+                      <div className="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                        <div>
+                          <div className="fw-medium">
+                            {familyItem.name}
+                            {isCurrent && (
+                              <Badge bg="secondary" className="ms-2">
+                                Attiva
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="small text-muted">
+                            Membri: {familyItem.membersCount} • Ruolo: {familyItem.role === 'admin' ? 'Admin' : 'Member'}
+                          </div>
+                        </div>
+                        <div className="d-flex gap-2">
+                          {familyItem.role === 'admin' ? (
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              className="btn-danger-soft"
+                              onClick={() => setPendingFamilyDelete({ id: familyItem.id, name: familyItem.name })}
+                              disabled={deleteFamilyMutation.isPending}
+                            >
+                              Elimina Famiglia
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              className="btn-danger-soft"
+                              onClick={() => setPendingLeaveFamily({ id: familyItem.id, name: familyItem.name })}
+                              disabled={leaveFamilyMutation.isPending}
+                            >
+                              Abbandona
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </ListGroup.Item>
+                  );
+                })}
+              </ListGroup>
+            ) : (
+              <Card.Body className="text-muted">Nessuna famiglia attiva</Card.Body>
+            )}
+          </Card>
+
+          <Card className="mb-4 settings-card">
+            <Card.Header>Famiglie di cui facevo parte</Card.Header>
+            {familiesLoading ? (
+              <Card.Body className="text-center">
+                <Spinner size="sm" animation="border" variant="success" />
+              </Card.Body>
+            ) : myFamilies?.formerFamilies?.length ? (
+              <ListGroup variant="flush" className="settings-list">
+                {myFamilies.formerFamilies.map((familyItem) => (
+                  <ListGroup.Item key={familyItem.id}>
+                    <div className="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                      <div>
+                        <div className="fw-medium">{familyItem.name}</div>
+                        <div className="small text-muted">
+                          Membri: {familyItem.membersCount} • Ruolo precedente: {familyItem.role === 'admin' ? 'Admin' : 'Member'}
+                        </div>
+                      </div>
+                      <div className="d-flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          className="btn-primary-soft"
+                          onClick={() => rejoinFamilyMutation.mutate(familyItem.id)}
+                          disabled={rejoinFamilyMutation.isPending}
+                        >
+                          Rientra in Famiglia
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline-danger"
+                          className="btn-danger-soft"
+                          onClick={() => setPendingForgetFamily({ id: familyItem.id, name: familyItem.name })}
+                          disabled={forgetFamilyMutation.isPending}
+                        >
+                          Rimuovi Definitivamente
+                        </Button>
+                      </div>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            ) : (
+              <Card.Body className="text-muted">Nessuna famiglia nello storico</Card.Body>
+            )}
+          </Card>
+        </Col>
+
+        <Col lg={6}>
           <Card className="mb-4 settings-card">
             <Card.Header>Membri della Famiglia</Card.Header>
             <ListGroup variant="flush" className="settings-list">
@@ -421,9 +571,7 @@ export default function ImpostazioniPage() {
               ))}
             </ListGroup>
           </Card>
-        </Col>
 
-        <Col lg={6}>
           {!isAdmin ? (
             <Card className="mb-4">
               <Card.Header>Inviti</Card.Header>
@@ -536,6 +684,110 @@ export default function ImpostazioniPage() {
           setPendingInviteDelete(null);
         }}
       />
+
+      <ConfirmModal
+        show={Boolean(pendingFamilyDelete)}
+        message={`Eliminare la famiglia "${pendingFamilyDelete?.name}" e tutti i suoi dati/membri?`}
+        onCancel={() => setPendingFamilyDelete(null)}
+        requireAuthCode
+        confirmLabel="Elimina Famiglia"
+        onConfirm={(authCode) => {
+          if (pendingFamilyDelete && authCode) {
+            deleteFamilyMutation.mutate({ familyId: pendingFamilyDelete.id, authCode });
+          }
+          setPendingFamilyDelete(null);
+        }}
+      />
+
+      <ConfirmModal
+        show={Boolean(pendingLeaveFamily)}
+        message={`Abbandonare la famiglia "${pendingLeaveFamily?.name}"?`}
+        onCancel={() => setPendingLeaveFamily(null)}
+        confirmLabel="Abbandona"
+        onConfirm={() => {
+          if (pendingLeaveFamily) {
+            leaveFamilyMutation.mutate(pendingLeaveFamily.id);
+          }
+          setPendingLeaveFamily(null);
+        }}
+      />
+
+      <ConfirmModal
+        show={Boolean(pendingForgetFamily)}
+        message={`Rimuovere definitivamente "${pendingForgetFamily?.name}" dallo storico?`}
+        onCancel={() => setPendingForgetFamily(null)}
+        confirmLabel="Rimuovi"
+        onConfirm={() => {
+          if (pendingForgetFamily) {
+            forgetFamilyMutation.mutate(pendingForgetFamily.id);
+          }
+          setPendingForgetFamily(null);
+        }}
+      />
+
+      <Modal
+        show={showCreateFamilyModal}
+        onHide={() => {
+          if (createFamilyMutation.isPending) return;
+          setShowCreateFamilyModal(false);
+        }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Aggiungi Famiglia</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setError('');
+              if (!newFamilyName.trim()) {
+                setError('Inserisci il nome della nuova famiglia');
+                return;
+              }
+              createFamilyMutation.mutate({
+                name: newFamilyName.trim(),
+                city: newFamilyCity.trim() || undefined,
+                switchToNewFamily: false,
+              });
+            }}
+          >
+            <Form.Group className="mb-3">
+              <Form.Label>Nome Famiglia</Form.Label>
+              <Form.Control
+                type="text"
+                value={newFamilyName}
+                onChange={(e) => setNewFamilyName(e.target.value)}
+                className="placeholder-soft"
+                placeholder="es: Famiglia Bianchi"
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Città</Form.Label>
+              <Form.Control
+                type="text"
+                value={newFamilyCity}
+                onChange={(e) => setNewFamilyCity(e.target.value)}
+                className="placeholder-soft"
+                placeholder="es: Roma"
+              />
+            </Form.Group>
+            <div className="d-flex justify-content-end gap-2 mt-4">
+              <Button
+                variant="outline-danger"
+                className="btn-danger-soft"
+                onClick={() => setShowCreateFamilyModal(false)}
+                disabled={createFamilyMutation.isPending}
+              >
+                Annulla
+              </Button>
+              <Button type="submit" variant="primary" disabled={createFamilyMutation.isPending}>
+                {createFamilyMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Crea Famiglia'}
+              </Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
     </DashboardLayout>
   );
 }

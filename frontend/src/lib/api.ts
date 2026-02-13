@@ -6,12 +6,21 @@ function authCodeHeaders(authCode?: string): Record<string, string> {
   return authCode ? { 'x-family-auth-code': authCode } : {};
 }
 
+function activeFamilyHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+  const activeFamilyId = window.localStorage.getItem('activeFamilyId');
+  return activeFamilyId ? { 'x-family-id': activeFamilyId } : {};
+}
+
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...activeFamilyHeaders(),
       ...options?.headers,
     },
   });
@@ -53,8 +62,26 @@ export const familyApi = {
   get: () => fetchApi<Family>('/api/family'),
   mine: () =>
     fetchApi<{
-      activeFamilyId: string;
-      families: { id: string; name: string; city?: string; role: 'admin' | 'member'; createdAt: string }[];
+      activeFamilyId: string | null;
+      families: {
+        id: string;
+        name: string;
+        city?: string;
+        role: 'admin' | 'member';
+        createdAt: string;
+        membersCount: number;
+        status: 'active';
+      }[];
+      formerFamilies: {
+        id: string;
+        name: string;
+        city?: string;
+        role: 'admin' | 'member';
+        createdAt: string;
+        membersCount: number;
+        status: 'left';
+        leftAt?: string | null;
+      }[];
     }>('/api/family/mine'),
   switchActive: (familyId: string) =>
     fetchApi<{ success: boolean; activeFamilyId: string }>('/api/family/switch', {
@@ -68,6 +95,23 @@ export const familyApi = {
     }>('/api/family/create', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  deleteFamily: (familyId: string, authCode: string) =>
+    fetchApi<{ success: boolean; activeFamilyId: string | null }>(`/api/family/${familyId}`, {
+      method: 'DELETE',
+      headers: authCodeHeaders(authCode),
+    }),
+  leaveFamily: (familyId: string) =>
+    fetchApi<{ success: boolean; activeFamilyId: string | null }>(`/api/family/${familyId}/leave`, {
+      method: 'POST',
+    }),
+  rejoinFamily: (familyId: string) =>
+    fetchApi<{ success: boolean; activeFamilyId: string }>(`/api/family/${familyId}/rejoin`, {
+      method: 'POST',
+    }),
+  forgetFormerFamily: (familyId: string) =>
+    fetchApi<{ success: boolean }>(`/api/family/${familyId}/former-membership`, {
+      method: 'DELETE',
     }),
   update: (data: { name?: string; city?: string }) => fetchApi<Family>('/api/family', {
     method: 'PUT',

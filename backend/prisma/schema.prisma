@@ -29,6 +29,11 @@ enum FamilyRole {
   member
 }
 
+enum MembershipStatus {
+  active
+  left
+}
+
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -50,6 +55,8 @@ model FamilyMember {
   familyId  String     @map("family_id")
   userId    String     @map("user_id")
   role      FamilyRole @default(member)
+  status    MembershipStatus @default(active)
+  leftAt    DateTime?  @map("left_at")
   createdAt DateTime   @default(now()) @map("created_at")
 
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)

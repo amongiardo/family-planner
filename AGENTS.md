@@ -50,5 +50,5 @@ Quando si lavora con più sessioni Codex in parallelo:
 - Segui le regole operative in `SKILL.md` (in particolare: chiedere sempre se fare `cm` a fine fix/feature).
 - Mantieni un versioning SemVer in `VERSION` (partenza `0.0.0`) e aggiornalo quando fai un rilascio logico o quando richiesto.
 
-Ultimo aggiornamento: 2026-02-13 (refactor multi-famiglia: membership, switch famiglia attiva, inviti multi-account)
+Ultimo aggiornamento: 2026-02-13 (multi-famiglia completo: membership con stato active/left, gestione famiglie in Impostazioni, creazione famiglia senza switch automatico, fix cache Next in dev_stop)
 </INSTRUCTIONS>

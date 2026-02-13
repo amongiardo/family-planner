@@ -770,7 +770,12 @@ export default function CalendarioPage() {
         </Row>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={handleCloseModal} disabled={savingDraft}>
+        <Button
+          variant="outline-danger"
+          className="btn-danger-soft"
+          onClick={handleCloseModal}
+          disabled={savingDraft}
+        >
           Annulla
         </Button>
         <Button variant="primary" onClick={handleSaveDraft} disabled={savingDraft}>
@@ -845,7 +850,11 @@ export default function CalendarioPage() {
         </Form.Group>
       </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowClearModal(false)}>
+          <Button
+            variant="outline-danger"
+            className="btn-danger-soft"
+            onClick={() => setShowClearModal(false)}
+          >
             Annulla
           </Button>
           <Button
@@ -906,7 +915,11 @@ export default function CalendarioPage() {
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowClearRangeModal(false)}>
+          <Button
+            variant="outline-danger"
+            className="btn-danger-soft"
+            onClick={() => setShowClearRangeModal(false)}
+          >
             Annulla
           </Button>
           <Button

@@ -5,11 +5,17 @@ import prisma from '../prisma';
 import { isAuthenticated, getFamilyId, getFamilyRole } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles';
 import { requireFamilyAuthCode } from '../middleware/familyAuthCode';
-import { generateFamilyAuthCode } from '../utils/familyAuthCode';
+import { generateFamilyAuthCode, isValidFamilyAuthCode } from '../utils/familyAuthCode';
 
 const router = Router();
 
-function toFamilyResponse(family: any, role: 'admin' | 'member', includeAuthCode: boolean) {
+type FamilyRole = 'admin' | 'member';
+
+type InviteValidationResult =
+  | { ok: true; invite: any }
+  | { ok: false; error: string; status: number };
+
+function toFamilyResponse(family: any, role: FamilyRole, includeAuthCode: boolean) {
   return {
     id: family.id,
     name: family.name,
@@ -27,9 +33,21 @@ function toFamilyResponse(family: any, role: 'admin' | 'member', includeAuthCode
   };
 }
 
-type InviteValidationResult =
-  | { ok: true; invite: any }
-  | { ok: false; error: string; status: number };
+function readAuthCode(req: any): string | null {
+  const headerCode =
+    typeof req.headers['x-family-auth-code'] === 'string'
+      ? req.headers['x-family-auth-code']
+      : Array.isArray(req.headers['x-family-auth-code'])
+        ? req.headers['x-family-auth-code'][0]
+        : null;
+
+  const bodyCode = req.body?.authCode;
+  const queryCode = req.query?.authCode;
+  const raw = headerCode ?? bodyCode ?? queryCode;
+  if (typeof raw !== 'string') return null;
+  const normalized = raw.trim().toUpperCase();
+  return normalized || null;
+}
 
 async function ensureInviteValid(token: string): Promise<InviteValidationResult> {
   const invite = await prisma.familyInvite.findUnique({
@@ -61,6 +79,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
       where: { id: familyId },
       include: {
         memberships: {
+          where: { status: 'active' },
           include: {
             user: {
               select: {
@@ -86,6 +105,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
         data: { authCode: generateFamilyAuthCode(5) },
         include: {
           memberships: {
+            where: { status: 'active' },
             include: {
               user: {
                 select: {
@@ -108,7 +128,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
   }
 });
 
-// List families for current user
+// List active/former families for current user
 router.get('/mine', isAuthenticated, async (req, res, next) => {
   try {
     const userId = req.user!.id;
@@ -129,16 +149,42 @@ router.get('/mine', isAuthenticated, async (req, res, next) => {
       orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
     });
 
-    res.json({
-      activeFamilyId,
-      families: memberships.map((m) => ({
+    const familyIds = Array.from(new Set(memberships.map((m) => m.familyId)));
+    const activeCounts = familyIds.length
+      ? await prisma.familyMember.groupBy({
+          by: ['familyId'],
+          where: { familyId: { in: familyIds }, status: 'active' },
+          _count: { _all: true },
+        })
+      : [];
+    const countMap = new Map(activeCounts.map((c) => [c.familyId, c._count._all]));
+
+    const activeFamilies = memberships
+      .filter((m) => m.status === 'active')
+      .map((m) => ({
         id: m.family.id,
         name: m.family.name,
         city: m.family.city,
         createdAt: m.family.createdAt,
         role: m.role,
-      })),
-    });
+        membersCount: countMap.get(m.family.id) || 0,
+        status: 'active' as const,
+      }));
+
+    const formerFamilies = memberships
+      .filter((m) => m.status === 'left')
+      .map((m) => ({
+        id: m.family.id,
+        name: m.family.name,
+        city: m.family.city,
+        createdAt: m.family.createdAt,
+        role: m.role,
+        membersCount: countMap.get(m.family.id) || 0,
+        status: 'left' as const,
+        leftAt: m.leftAt,
+      }));
+
+    res.json({ activeFamilyId, families: activeFamilies, formerFamilies });
   } catch (error) {
     next(error);
   }
@@ -159,11 +205,11 @@ router.post('/switch', isAuthenticated, async (req, res, next) => {
           userId: req.user!.id,
         },
       },
-      select: { familyId: true },
+      select: { familyId: true, status: true },
     });
 
-    if (!membership) {
-      return res.status(403).json({ error: 'Not a member of selected family' });
+    if (!membership || membership.status !== 'active') {
+      return res.status(403).json({ error: 'Not an active member of selected family' });
     }
 
     req.session.activeFamilyId = familyId;
@@ -194,6 +240,7 @@ router.post('/create', isAuthenticated, async (req, res, next) => {
         familyId: family.id,
         userId: req.user!.id,
         role: 'admin',
+        status: 'active',
       },
     });
 
@@ -212,6 +259,159 @@ router.post('/create', isAuthenticated, async (req, res, next) => {
       },
       activeFamilyId: shouldSwitch ? family.id : req.session.activeFamilyId,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Leave family (only non-admin)
+router.post('/:familyId/leave', isAuthenticated, async (req, res, next) => {
+  try {
+    const { familyId } = req.params;
+    const userId = req.user!.id;
+
+    const membership = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId } },
+      select: { role: true, status: true },
+    });
+
+    if (!membership || membership.status !== 'active') {
+      return res.status(404).json({ error: 'Active membership not found' });
+    }
+
+    if (membership.role === 'admin') {
+      return res.status(400).json({ error: 'Gli admin non possono abbandonare la famiglia da questa azione' });
+    }
+
+    await prisma.familyMember.update({
+      where: { familyId_userId: { familyId, userId } },
+      data: { status: 'left', leftAt: new Date() },
+    });
+
+    if (req.session.activeFamilyId === familyId) {
+      const fallback = await prisma.familyMember.findFirst({
+        where: { userId, status: 'active' },
+        orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
+        select: { familyId: true },
+      });
+      req.session.activeFamilyId = fallback?.familyId;
+    }
+
+    res.json({ success: true, activeFamilyId: req.session.activeFamilyId || null });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Rejoin a former family
+router.post('/:familyId/rejoin', isAuthenticated, async (req, res, next) => {
+  try {
+    const { familyId } = req.params;
+    const userId = req.user!.id;
+
+    const membership = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId } },
+      select: { status: true },
+    });
+
+    if (!membership || membership.status !== 'left') {
+      return res.status(404).json({ error: 'Former membership not found' });
+    }
+
+    await prisma.familyMember.update({
+      where: { familyId_userId: { familyId, userId } },
+      data: { status: 'active', leftAt: null },
+    });
+
+    req.session.activeFamilyId = familyId;
+    res.json({ success: true, activeFamilyId: familyId });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Permanently remove a former family membership
+router.delete('/:familyId/former-membership', isAuthenticated, async (req, res, next) => {
+  try {
+    const { familyId } = req.params;
+    const userId = req.user!.id;
+
+    const membership = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId } },
+      select: { status: true },
+    });
+
+    if (!membership || membership.status !== 'left') {
+      return res.status(404).json({ error: 'Former membership not found' });
+    }
+
+    await prisma.familyMember.delete({
+      where: { familyId_userId: { familyId, userId } },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete entire family (admin only, requires auth code)
+router.delete('/:familyId', isAuthenticated, async (req, res, next) => {
+  try {
+    const { familyId } = req.params;
+    const userId = req.user!.id;
+
+    const membership = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId } },
+      select: { role: true, status: true },
+    });
+
+    if (!membership || membership.status !== 'active') {
+      return res.status(403).json({ error: 'Not an active member of this family' });
+    }
+
+    if (membership.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admin can delete the family' });
+    }
+
+    const code = readAuthCode(req);
+    if (!code) {
+      return res.status(400).json({ error: 'Codice di autenticazione richiesto' });
+    }
+    if (!isValidFamilyAuthCode(code)) {
+      return res.status(400).json({ error: 'Codice di autenticazione non valido' });
+    }
+
+    const family = await prisma.family.findUnique({
+      where: { id: familyId },
+      select: { authCode: true },
+    });
+
+    if (!family) {
+      return res.status(404).json({ error: 'Family not found' });
+    }
+
+    const familyCode = family.authCode || generateFamilyAuthCode(5);
+    if (!family.authCode) {
+      await prisma.family.update({ where: { id: familyId }, data: { authCode: familyCode } });
+    }
+
+    if (familyCode.toUpperCase() !== code) {
+      return res.status(403).json({ error: 'Codice di autenticazione errato' });
+    }
+
+    await prisma.family.delete({ where: { id: familyId } });
+
+    if (req.session.activeFamilyId === familyId) {
+      const fallback = await prisma.familyMember.findFirst({
+        where: { userId, status: 'active' },
+        orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
+        select: { familyId: true },
+      });
+      req.session.activeFamilyId = fallback?.familyId;
+    }
+
+    res.json({ success: true, activeFamilyId: req.session.activeFamilyId || null });
   } catch (error) {
     next(error);
   }
@@ -272,6 +472,7 @@ router.post('/invite', isAuthenticated, requireAdmin, async (req, res, next) => 
     const alreadyMember = await prisma.familyMember.findFirst({
       where: {
         familyId,
+        status: 'active',
         user: {
           email: normalizedEmail,
         },
@@ -387,11 +588,15 @@ router.post('/invite/:token/accept', isAuthenticated, async (req, res, next) => 
             userId: user.id,
           },
         },
-        update: {},
+        update: {
+          status: 'active',
+          leftAt: null,
+        },
         create: {
           familyId: invite.familyId,
           userId: user.id,
           role: 'member',
+          status: 'active',
         },
       });
 
@@ -426,16 +631,16 @@ router.put('/members/:userId/role', isAuthenticated, requireAdmin, async (req, r
           userId,
         },
       },
-      select: { userId: true, role: true },
+      select: { userId: true, role: true, status: true },
     });
 
-    if (!target) {
+    if (!target || target.status !== 'active') {
       return res.status(404).json({ error: 'User not found in family' });
     }
 
     if (target.role === 'admin' && role === 'member') {
       const adminCount = await prisma.familyMember.count({
-        where: { familyId, role: 'admin' },
+        where: { familyId, role: 'admin', status: 'active' },
       });
       if (adminCount <= 1) {
         return res.status(400).json({ error: 'Non puoi rimuovere l’ultimo admin della famiglia' });

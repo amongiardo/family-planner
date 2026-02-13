@@ -493,7 +493,11 @@ export default function DashboardPage() {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDishModal(false)}>
+          <Button
+            variant="outline-danger"
+            className="btn-danger-soft"
+            onClick={() => setShowDishModal(false)}
+          >
             Annulla
           </Button>
           <Button
@@ -533,7 +537,11 @@ export default function DashboardPage() {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowShoppingModal(false)}>
+          <Button
+            variant="outline-danger"
+            className="btn-danger-soft"
+            onClick={() => setShowShoppingModal(false)}
+          >
             Annulla
           </Button>
           <Button

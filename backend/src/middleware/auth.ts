@@ -28,10 +28,11 @@ async function resolveActiveFamily(req: Request) {
       select: {
         familyId: true,
         role: true,
+        status: true,
       },
     });
 
-    if (membership) {
+    if (membership && membership.status === 'active') {
       (req.session as any).activeFamilyId = membership.familyId;
       req.activeFamilyId = membership.familyId;
       req.activeFamilyRole = membership.role;
@@ -40,7 +41,7 @@ async function resolveActiveFamily(req: Request) {
   }
 
   const fallback = await prisma.familyMember.findFirst({
-    where: { userId: req.user.id },
+    where: { userId: req.user.id, status: 'active' },
     orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
     select: {
       familyId: true,

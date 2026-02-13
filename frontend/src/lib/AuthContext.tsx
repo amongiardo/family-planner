@@ -25,8 +25,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const { user } = await authApi.getMe();
       setUser(user);
+      if (typeof window !== 'undefined') {
+        if (user?.activeFamilyId) {
+          window.localStorage.setItem('activeFamilyId', user.activeFamilyId);
+        } else {
+          window.localStorage.removeItem('activeFamilyId');
+        }
+      }
     } catch (err) {
       setUser(null);
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem('activeFamilyId');
+      }
       // Don't set error for 401 (not logged in)
     } finally {
       setLoading(false);
@@ -41,6 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await authApi.logout();
       setUser(null);
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem('activeFamilyId');
+      }
       window.location.href = '/login';
     } catch (err) {
       setError('Logout failed');

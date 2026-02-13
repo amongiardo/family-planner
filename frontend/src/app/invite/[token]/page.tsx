@@ -158,7 +158,8 @@ export default function InvitePage() {
                   {acceptingInvite ? <Spinner size="sm" animation="border" /> : 'Accetta Invito'}
                 </Button>
                 <Button
-                  variant="outline-secondary"
+                  variant="outline-danger"
+                  className="btn-danger-soft"
                   onClick={async () => {
                     await refresh();
                     router.push('/dashboard');

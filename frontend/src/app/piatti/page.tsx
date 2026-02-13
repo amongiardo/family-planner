@@ -578,7 +578,11 @@ export default function PiattiPage() {
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={handleCloseModal}>
+            <Button
+              variant="outline-danger"
+              className="btn-danger-soft"
+              onClick={handleCloseModal}
+            >
               Annulla
             </Button>
             <Button
@@ -626,7 +630,11 @@ export default function PiattiPage() {
           />
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowImportModal(false)}>
+          <Button
+            variant="outline-danger"
+            className="btn-danger-soft"
+            onClick={() => setShowImportModal(false)}
+          >
             Annulla
           </Button>
           <Button
@@ -770,7 +778,11 @@ export default function PiattiPage() {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAutoModal(false)}>
+          <Button
+            variant="outline-danger"
+            className="btn-danger-soft"
+            onClick={() => setShowAutoModal(false)}
+          >
             Annulla
           </Button>
           <Button

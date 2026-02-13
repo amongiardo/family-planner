@@ -1,5 +1,5 @@
 INFO FOR CODEX
-Ultimo aggiornamento: 2026-02-13
+Ultimo aggiornamento: 2026-02-13 (sera)
 
 Scopo del progetto
 Family Planner è una web app per l’organizzazione familiare, con focus su pasti, calendario e lista spesa. Consente di pianificare pranzi e cene su calendario, gestire un catalogo piatti con ingredienti, generare la lista della spesa e suggerire pasti per evitare ripetizioni e mantenere un’alimentazione bilanciata. Supporta l’uso multi‑famiglia con inviti e dati isolati per nucleo.
@@ -126,3 +126,12 @@ Changelog
 - 2026-02-13: Login/inviti aggiornati per supportare la stessa email su piu famiglie (join a famiglia invitante senza creare un nuovo account).
 - 2026-02-13: Navbar aggiornata con selettore famiglia attiva; Impostazioni aggiornate con creazione nuova famiglia.
 - 2026-02-13: Build verificate dopo refactor: backend (`tsc`) e frontend (`next build`) OK.
+- 2026-02-13: Impostazioni: creazione nuova famiglia spostata in modale con pulsante top-right “Aggiungi Famiglia”, senza default precompilato sulla città.
+- 2026-02-13: Uniformati i pulsanti “Annulla” al tema rosso soft su dashboard/calendario/piatti/invite e ConfirmModal.
+- 2026-02-13: Impostazioni: box “Famiglia” rinominato in “Modifica Famiglia”; input non precompilati; pulsanti Salva disabilitati con campo vuoto; auth code reso visualmente disabled.
+- 2026-02-13: Esteso modello membership con stato (`active`/`left`) e nuove API famiglie: leave/rejoin/forget former membership + delete family con auth code.
+- 2026-02-13: Impostazioni: aggiunti box “Tutte le famiglie” e “Famiglie di cui facevo parte” con azioni dedicate (elimina/abbandona/rientra/rimuovi definitivo).
+- 2026-02-13: Layout Impostazioni riorganizzato: sinistra (Modifica + Tutte + Facevo parte), destra (Membri + Invita + Inviti pendenti).
+- 2026-02-13: Creazione famiglia non cambia più automaticamente la famiglia attiva (`switchToNewFamily: false`) e resta in pagina.
+- 2026-02-13: Analisi log pagina bianca: root cause cache/chunk Next corrotti (`Cannot find module './948.js'`, 500/404 su `/_next/static/*`).
+- 2026-02-13: Script `dev_stop.sh` aggiornato per pulire automaticamente `frontend/.next` ed evitare stati cache corrotti al riavvio.

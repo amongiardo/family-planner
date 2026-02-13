@@ -20,13 +20,13 @@ async function resolveActiveFamilyId(userId: string, current?: string) {
           userId,
         },
       },
-      select: { familyId: true },
+      select: { familyId: true, status: true },
     });
-    if (currentMembership) return currentMembership.familyId;
+    if (currentMembership?.status === 'active') return currentMembership.familyId;
   }
 
   const firstMembership = await prisma.familyMember.findFirst({
-    where: { userId },
+    where: { userId, status: 'active' },
     orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
     select: { familyId: true },
   });
@@ -39,7 +39,7 @@ async function buildAuthPayload(userId: string, activeFamilyId?: string) {
   if (!user) return { user: null };
 
   const memberships = await prisma.familyMember.findMany({
-    where: { userId },
+    where: { userId, status: 'active' },
     include: {
       family: {
         select: {
@@ -89,7 +89,10 @@ async function attachInviteMembershipForUser(userId: string, email: string, invi
           userId,
         },
       },
-      update: {},
+      update: {
+        status: 'active',
+        leftAt: null,
+      },
       create: {
         familyId: invite.familyId,
         userId,
