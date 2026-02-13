@@ -170,3 +170,4 @@ Changelog
 - 2026-02-13: Chat privata per membro: supporto backend `recipient_user_id` con visibilità filtrata (mittente/destinatario) e invio diretto da pagina chat.
 - 2026-02-13: Notifiche chat migliorate: messaggio notifica con preview contenuto (`Nome: testo...`) invece di testo generico.
 - 2026-02-13: UX campanella: dropdown notifiche con sfondo blu, item unread evidenziati e pulsante `Segna tutte lette` stilizzato.
+- 2026-02-13: Chat UI separata: flussi distinti "Chat Famiglia" e "Chat Privata" (thread per membro) con box membri spostato in alto.
