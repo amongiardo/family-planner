@@ -32,10 +32,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           window.localStorage.removeItem('activeFamilyId');
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       setUser(null);
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem('activeFamilyId');
+        const message = err?.message || '';
+        if (message) {
+          setError(message);
+        }
+        if (message.includes('Non fai più parte di nessuna famiglia')) {
+          window.sessionStorage.setItem('authNotice', message);
+        }
       }
       // Don't set error for 401 (not logged in)
     } finally {

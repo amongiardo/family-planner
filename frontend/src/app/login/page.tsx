@@ -30,6 +30,15 @@ function LoginPageContent() {
     }
   }, [user, loading, router]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const notice = window.sessionStorage.getItem('authNotice');
+    if (notice) {
+      setLocalError(notice);
+      window.sessionStorage.removeItem('authNotice');
+    }
+  }, []);
+
   const handleLocalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -83,7 +92,13 @@ function LoginPageContent() {
         <StatusModal
           show={Boolean(error || localError)}
           variant="danger"
-          message={error ? 'Autenticazione fallita. Riprova.' : localError || ''}
+          message={
+            error === 'no_family'
+              ? 'Non fai più parte di nessuna famiglia. Registrati per crearne una nuova oppure attendi un nuovo invito.'
+              : error
+                ? 'Autenticazione fallita. Riprova.'
+                : localError || ''
+          }
           onClose={() => {
             if (error) {
               router.replace('/login');

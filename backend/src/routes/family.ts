@@ -6,6 +6,7 @@ import { isAuthenticated, isLoggedIn, getFamilyId, getFamilyRole } from '../midd
 import { requireAdmin } from '../middleware/roles';
 import { ensureUserAuthCode, readProvidedCode, requireFamilyAuthCode } from '../middleware/familyAuthCode';
 import { generateFamilyAuthCode, isValidFamilyAuthCode } from '../utils/familyAuthCode';
+import { createNotifications } from '../services/notifications';
 
 const router = Router();
 
@@ -186,7 +187,7 @@ router.get('/mine', isLoggedIn, async (req, res, next) => {
       }));
 
     const formerFamilies = memberships
-      .filter((m) => m.status === 'left' || Boolean(m.family.deletedAt))
+      .filter((m) => m.status === 'left' || m.status === 'removed' || Boolean(m.family.deletedAt))
       .map((m) => ({
         id: m.family.id,
         name: m.family.name,
@@ -194,14 +195,16 @@ router.get('/mine', isLoggedIn, async (req, res, next) => {
         createdAt: m.family.createdAt,
         role: m.role,
         membersCount: !m.family.deletedAt ? countMap.get(m.family.id) || 0 : 0,
-        status: 'left' as const,
+        status: m.status as 'left' | 'removed',
         leftAt: m.leftAt,
+        removedAt: m.removedAt,
         familyDeletedAt: m.family.deletedAt,
         creatorName: m.family.createdByUser?.name || null,
         creatorEmail: m.family.createdByUser?.email || null,
         deletedByName: m.family.deletedByUser?.name || null,
         deletedByEmail: m.family.deletedByUser?.email || null,
-        canRejoin: !m.family.deletedAt,
+        canRejoin: m.status === 'left' && !m.family.deletedAt,
+        isEliminated: m.status === 'removed' || Boolean(m.family.deletedAt),
       }));
 
     res.json({ activeFamilyId, families: activeFamilies, formerFamilies });
@@ -381,6 +384,33 @@ router.post('/:familyId/leave', isLoggedIn, async (req, res, next) => {
       data: { status: 'left', leftAt: new Date() },
     });
 
+    await prisma.chatMessage.create({
+      data: {
+        familyId,
+        messageType: 'system',
+        content: `${req.user!.name} ha abbandonato la famiglia.`,
+      },
+    });
+
+    const recipients = await prisma.familyMember.findMany({
+      where: {
+        familyId,
+        status: 'active',
+        userId: { not: userId },
+      },
+      select: { userId: true },
+    });
+
+    await createNotifications(
+      recipients.map((recipient) => ({
+        userId: recipient.userId,
+        familyId,
+        type: 'member_left',
+        title: 'Membro uscito',
+        message: `${req.user!.name} ha abbandonato la famiglia.`,
+      }))
+    );
+
     if (isLeavingActiveFamily && targetFamilyId) {
       req.session.activeFamilyId = targetFamilyId;
     }
@@ -409,7 +439,13 @@ router.post('/:familyId/rejoin', isLoggedIn, async (req, res, next) => {
       },
     });
 
-    if (!membership || membership.status !== 'left') {
+    if (!membership) {
+      return res.status(404).json({ error: 'Former membership not found' });
+    }
+    if (membership.status === 'removed') {
+      return res.status(400).json({ error: 'Rientro non consentito: devi essere invitato nuovamente' });
+    }
+    if (membership.status !== 'left') {
       return res.status(404).json({ error: 'Former membership not found' });
     }
     if (membership.family.deletedAt) {
@@ -418,7 +454,7 @@ router.post('/:familyId/rejoin', isLoggedIn, async (req, res, next) => {
 
     await prisma.familyMember.update({
       where: { familyId_userId: { familyId, userId } },
-      data: { status: 'active', leftAt: null },
+      data: { status: 'active', leftAt: null, removedAt: null },
     });
 
     req.session.activeFamilyId = familyId;
@@ -428,7 +464,7 @@ router.post('/:familyId/rejoin', isLoggedIn, async (req, res, next) => {
   }
 });
 
-// Permanently remove a former family membership
+// Permanently mark a former family membership as removed (no direct rejoin)
 router.delete('/:familyId/former-membership', isLoggedIn, async (req, res, next) => {
   try {
     const { familyId } = req.params;
@@ -439,12 +475,16 @@ router.delete('/:familyId/former-membership', isLoggedIn, async (req, res, next)
       select: { status: true },
     });
 
-    if (!membership || membership.status !== 'left') {
+    if (!membership || (membership.status !== 'left' && membership.status !== 'removed')) {
       return res.status(404).json({ error: 'Former membership not found' });
     }
 
-    await prisma.familyMember.delete({
+    await prisma.familyMember.update({
       where: { familyId_userId: { familyId, userId } },
+      data: {
+        status: 'removed',
+        removedAt: new Date(),
+      },
     });
 
     res.json({ success: true });
@@ -560,6 +600,24 @@ router.delete('/:familyId', isLoggedIn, async (req, res, next) => {
         },
       });
     });
+
+    const recipients = await prisma.familyMember.findMany({
+      where: {
+        familyId,
+        userId: { not: userId },
+      },
+      select: { userId: true },
+    });
+
+    await createNotifications(
+      recipients.map((recipient) => ({
+        userId: recipient.userId,
+        familyId,
+        type: 'family_deleted',
+        title: 'Famiglia eliminata',
+        message: 'Una famiglia di cui facevi parte è stata eliminata.',
+      }))
+    );
 
     if (isDeletingActiveFamily && targetFamilyId) {
       req.session.activeFamilyId = targetFamilyId;
@@ -767,6 +825,7 @@ router.post('/invite/:token/accept', isLoggedIn, async (req, res, next) => {
         update: {
           status: 'active',
           leftAt: null,
+          removedAt: null,
         },
         create: {
           familyId: invite.familyId,
@@ -848,12 +907,14 @@ router.get('/former-members', isAuthenticated, requireAdmin, async (req, res, ne
     const formerMembers = await prisma.familyMember.findMany({
       where: {
         familyId,
-        status: 'left',
+        status: { in: ['left', 'removed'] },
       },
       select: {
         userId: true,
         role: true,
         leftAt: true,
+        removedAt: true,
+        status: true,
         user: {
           select: {
             id: true,
@@ -874,6 +935,9 @@ router.get('/former-members', isAuthenticated, requireAdmin, async (req, res, ne
         avatarUrl: member.user.avatarUrl,
         previousRole: member.role,
         leftAt: member.leftAt,
+        removedAt: member.removedAt,
+        status: member.status,
+        canRejoin: member.status === 'left',
       }))
     );
   } catch (error) {
@@ -901,8 +965,62 @@ router.post('/former-members/:userId/rejoin', isAuthenticated, requireAdmin, asy
       data: {
         status: 'active',
         leftAt: null,
+        removedAt: null,
       },
     });
+
+    await createNotifications([
+      {
+        userId,
+        familyId,
+        type: 'membership_reactivated',
+        title: 'Rientro in famiglia',
+        message: 'Un amministratore ti ha riammesso in famiglia.',
+      },
+    ]);
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Mark a former member as removed (admin only, keep history but disable direct rejoin)
+router.post('/former-members/:userId/remove', isAuthenticated, requireAdmin, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const { userId } = req.params;
+
+    const membership = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId } },
+      select: { status: true },
+    });
+
+    if (!membership || (membership.status !== 'left' && membership.status !== 'removed')) {
+      return res.status(404).json({ error: 'Former member not found' });
+    }
+
+    if (membership.status === 'removed') {
+      return res.json({ success: true });
+    }
+
+    await prisma.familyMember.update({
+      where: { familyId_userId: { familyId, userId } },
+      data: {
+        status: 'removed',
+        removedAt: new Date(),
+      },
+    });
+
+    await createNotifications([
+      {
+        userId,
+        familyId,
+        type: 'membership_removed',
+        title: 'Rimosso definitivamente dalla famiglia',
+        message: 'Non puoi più rientrare direttamente: serve un nuovo invito.',
+      },
+    ]);
 
     res.json({ success: true });
   } catch (error) {

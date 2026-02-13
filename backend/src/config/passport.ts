@@ -39,6 +39,7 @@ async function attachInviteMembership(userId: string, email: string, inviteToken
       update: {
         status: 'active',
         leftAt: null,
+        removedAt: null,
       },
       create: {
         familyId: invite.familyId,

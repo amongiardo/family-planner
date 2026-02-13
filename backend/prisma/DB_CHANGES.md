@@ -44,6 +44,20 @@ Questo file traccia in modo sintetico le modifiche schema/database applicate tra
   - cancellazione famiglia in soft-delete (storico preservato).
   - tracciamento creatore/eliminatore per storico famiglie ex-membro.
 
+### `20260214000500_notifications_chat_membership_removed`
+- Tabella: `family_members`
+- Modifica:
+  - nuovo valore enum `MembershipStatus`: `removed`
+  - nuova colonna `removed_at` (`TIMESTAMP`, nullable)
+- Nuova tabella: `notifications`
+  - campi principali: `user_id`, `family_id`, `type`, `title`, `message`, `is_read`, `data`, `created_at`
+- Nuova tabella: `chat_messages`
+  - campi principali: `family_id`, `sender_user_id`, `message_type`, `content`, `created_at`
+- Effetto:
+  - storico membership permanente con stato eliminato (no rientro diretto).
+  - infrastruttura notifiche utente con polling.
+  - chat famiglia persistente con messaggi utente/sistema.
+
 ## Note operative
 - Per allineare DB locale a queste modifiche usare:
   - `./scripts/update_local.sh`

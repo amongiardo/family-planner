@@ -14,6 +14,8 @@ import suggestionsRoutes from './routes/suggestions';
 import shoppingRoutes from './routes/shopping';
 import weatherRoutes from './routes/weather';
 import statsRoutes from './routes/stats';
+import notificationsRoutes from './routes/notifications';
+import chatRoutes from './routes/chat';
 
 dotenv.config();
 
@@ -64,6 +66,8 @@ app.use('/api/suggestions', suggestionsRoutes);
 app.use('/api/shopping', shoppingRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

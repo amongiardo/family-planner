@@ -196,6 +196,17 @@ export default function ImpostazioniPage() {
     onError: (err: Error) => setError(err.message),
   });
 
+  const removeFormerMemberMutation = useMutation({
+    mutationFn: (userId: string) => familyApi.removeFormerMember(userId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['family', 'former-members'] });
+      await queryClient.invalidateQueries({ queryKey: ['family', 'mine'] });
+      setSuccess('Membro segnato come eliminato definitivamente');
+      setTimeout(() => setSuccess(''), 3000);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
   const deleteFamilyMutation = useMutation({
     mutationFn: ({ familyId, authCode, targetFamilyId }: { familyId: string; authCode: string; targetFamilyId?: string }) =>
       familyApi.deleteFamily(familyId, authCode, targetFamilyId),
@@ -258,7 +269,7 @@ export default function ImpostazioniPage() {
     mutationFn: (familyId: string) => familyApi.forgetFormerFamily(familyId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['family', 'mine'] });
-      setSuccess('Famiglia rimossa dallo storico');
+      setSuccess('Famiglia segnata come eliminata');
       setTimeout(() => setSuccess(''), 3000);
     },
     onError: (err: Error) => setError(err.message),
@@ -683,26 +694,35 @@ export default function ImpostazioniPage() {
                               : ''}
                           </div>
                         )}
+                        {familyItem.isEliminated && (
+                          <Badge bg="danger" className="mt-1">
+                            Eliminato
+                          </Badge>
+                        )}
                       </div>
                       <div className="d-flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline-primary"
-                          className="btn-primary-soft"
-                          onClick={() => rejoinFamilyMutation.mutate(familyItem.id)}
-                          disabled={rejoinFamilyMutation.isPending || !familyItem.canRejoin}
-                        >
-                          Rientra in Famiglia
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline-danger"
-                          className="btn-danger-soft"
-                          onClick={() => setPendingForgetFamily({ id: familyItem.id, name: familyItem.name })}
-                          disabled={forgetFamilyMutation.isPending}
-                        >
-                          Esci definitivamente
-                        </Button>
+                        {!familyItem.isEliminated && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline-primary"
+                              className="btn-primary-soft"
+                              onClick={() => rejoinFamilyMutation.mutate(familyItem.id)}
+                              disabled={rejoinFamilyMutation.isPending || !familyItem.canRejoin}
+                            >
+                              Rientra in Famiglia
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              className="btn-danger-soft"
+                              onClick={() => setPendingForgetFamily({ id: familyItem.id, name: familyItem.name })}
+                              disabled={forgetFamilyMutation.isPending}
+                            >
+                              Esci definitivamente
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </ListGroup.Item>
@@ -800,16 +820,34 @@ export default function ImpostazioniPage() {
                               Uscito il {format(parseISO(member.leftAt), 'd MMM yyyy', { locale: it })}
                             </div>
                           )}
+                          {member.status === 'removed' && (
+                            <Badge bg="danger" className="mt-1">
+                              Eliminato
+                            </Badge>
+                          )}
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline-primary"
-                          className="btn-primary-soft"
-                          onClick={() => rejoinFormerMemberMutation.mutate(member.id)}
-                          disabled={rejoinFormerMemberMutation.isPending}
-                        >
-                          Fai Rientrare
-                        </Button>
+                        {member.status !== 'removed' && (
+                          <div className="d-flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline-primary"
+                              className="btn-primary-soft"
+                              onClick={() => rejoinFormerMemberMutation.mutate(member.id)}
+                              disabled={rejoinFormerMemberMutation.isPending || !member.canRejoin}
+                            >
+                              Fai Rientrare
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              className="btn-danger-soft"
+                              onClick={() => removeFormerMemberMutation.mutate(member.id)}
+                              disabled={removeFormerMemberMutation.isPending}
+                            >
+                              Rimuovi definitivamente
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </ListGroup.Item>
                   ))}

@@ -6,6 +6,8 @@ import { generateFamilyAuthCode } from '../utils/familyAuthCode';
 import { ensureUserAuthCode } from '../middleware/familyAuthCode';
 
 const router = Router();
+const NO_ACTIVE_FAMILY_MESSAGE =
+  'Non fai più parte di nessuna famiglia. Puoi crearne una nuova registrandoti oppure attendere un nuovo invito.';
 
 function sanitizeUser(user: any) {
   const { passwordHash, ...safeUser } = user;
@@ -115,6 +117,7 @@ async function attachInviteMembershipForUser(userId: string, email: string, invi
       update: {
         status: 'active',
         leftAt: null,
+        removedAt: null,
       },
       create: {
         familyId: invite.familyId,
@@ -158,6 +161,9 @@ router.get(
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
       }
       const activeFamilyId = await resolveActiveFamilyId(req.user.id, req.session.activeFamilyId);
+      if (!activeFamilyId) {
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_family`);
+      }
       req.session.activeFamilyId = activeFamilyId;
       res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
     } catch (error) {
@@ -192,6 +198,9 @@ router.get(
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
       }
       const activeFamilyId = await resolveActiveFamilyId(req.user.id, req.session.activeFamilyId);
+      if (!activeFamilyId) {
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_family`);
+      }
       req.session.activeFamilyId = activeFamilyId;
       res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
     } catch (error) {
@@ -265,7 +274,11 @@ router.post('/local/register', async (req, res, next) => {
               userId: user.id,
             },
           },
-          update: {},
+          update: {
+            status: 'active',
+            leftAt: null,
+            removedAt: null,
+          },
           create: {
             familyId: inviteFamilyId!,
             userId: user.id,
@@ -352,6 +365,9 @@ router.post('/local/login', async (req, res, next) => {
 
       const activeFamilyId =
         inviteFamilyId || (await resolveActiveFamilyId(user.id, req.session.activeFamilyId));
+      if (!activeFamilyId) {
+        return res.status(403).json({ error: NO_ACTIVE_FAMILY_MESSAGE, code: 'NO_ACTIVE_FAMILY' });
+      }
       req.session.activeFamilyId = activeFamilyId;
       res.json(await buildAuthPayload(user.id, activeFamilyId));
     });
@@ -367,6 +383,12 @@ router.get('/me', async (req, res, next) => {
     }
 
     const activeFamilyId = await resolveActiveFamilyId(req.user.id, req.session.activeFamilyId);
+    if (!activeFamilyId) {
+      req.logout(() => {});
+      req.session.destroy(() => {});
+      res.clearCookie('connect.sid');
+      return res.status(403).json({ error: NO_ACTIVE_FAMILY_MESSAGE, code: 'NO_ACTIVE_FAMILY' });
+    }
     req.session.activeFamilyId = activeFamilyId;
     res.json(await buildAuthPayload(req.user.id, activeFamilyId));
   } catch (error) {

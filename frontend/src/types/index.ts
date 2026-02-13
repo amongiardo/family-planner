@@ -27,14 +27,16 @@ export interface FormerFamilyMembership {
   role: 'admin' | 'member';
   createdAt: string;
   membersCount: number;
-  status: 'left';
+  status: 'left' | 'removed';
   leftAt?: string | null;
+  removedAt?: string | null;
   familyDeletedAt?: string | null;
   creatorName?: string | null;
   creatorEmail?: string | null;
   deletedByName?: string | null;
   deletedByEmail?: string | null;
   canRejoin: boolean;
+  isEliminated?: boolean;
 }
 
 export interface Family {
@@ -76,6 +78,36 @@ export interface FamilyFormerMember {
   avatarUrl?: string;
   previousRole: 'admin' | 'member';
   leftAt?: string | null;
+  removedAt?: string | null;
+  status: 'left' | 'removed';
+  canRejoin: boolean;
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  familyId?: string | null;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  data?: unknown;
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  familyId: string;
+  senderUserId?: string | null;
+  messageType: 'user' | 'system';
+  content: string;
+  createdAt: string;
+  sender?: {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string | null;
+  } | null;
 }
 
 export type DishCategory = 'primo' | 'secondo' | 'contorno';

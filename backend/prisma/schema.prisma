@@ -28,6 +28,8 @@ model Family {
   mealOuts      MealOut[]
   shoppingLists ShoppingList[]
   invites       FamilyInvite[]
+  notifications Notification[]
+  chatMessages  ChatMessage[]
   createdByUser User?      @relation("family_created_by", fields: [createdByUserId], references: [id], onDelete: SetNull)
   deletedByUser User?      @relation("family_deleted_by", fields: [deletedByUserId], references: [id], onDelete: SetNull)
 
@@ -42,6 +44,7 @@ enum FamilyRole {
 enum MembershipStatus {
   active
   left
+  removed
 }
 
 model User {
@@ -58,6 +61,8 @@ model User {
   memberships FamilyMember[]
   createdFamilies Family[] @relation("family_created_by")
   deletedFamilies Family[] @relation("family_deleted_by")
+  notifications Notification[]
+  chatMessagesSent ChatMessage[] @relation("chat_message_sender")
 
   @@unique([oauthProvider, oauthId])
   @@map("users")
@@ -70,6 +75,7 @@ model FamilyMember {
   role      FamilyRole @default(member)
   status    MembershipStatus @default(active)
   leftAt    DateTime?  @map("left_at")
+  removedAt DateTime?  @map("removed_at")
   createdAt DateTime   @default(now()) @map("created_at")
 
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -160,6 +166,41 @@ model FamilyInvite {
   family Family @relation(fields: [familyId], references: [id])
 
   @@map("family_invites")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  familyId  String?  @map("family_id")
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  data      Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family Family? @relation(fields: [familyId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model ChatMessage {
+  id           String   @id @default(uuid())
+  familyId     String   @map("family_id")
+  senderUserId String?  @map("sender_user_id")
+  messageType  String   @default("user") @map("message_type")
+  content      String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  sender User?  @relation("chat_message_sender", fields: [senderUserId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, createdAt])
+  @@index([senderUserId])
+  @@map("chat_messages")
 }
 
 model Session {

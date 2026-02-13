@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { familyApi } from '@/lib/api';
+import { familyApi, notificationsApi } from '@/lib/api';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { FaBell } from 'react-icons/fa';
 
 export default function Navbar() {
   const router = useRouter();
@@ -20,6 +22,23 @@ export default function Navbar() {
       : activeFamily?.role === 'member'
         ? 'Membro'
         : null;
+
+  const notificationsQuery = useQuery({
+    queryKey: ['notifications', 'navbar'],
+    queryFn: () => notificationsApi.list(15),
+    enabled: Boolean(user),
+    refetchInterval: 10000,
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: (id: string) => notificationsApi.markRead(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: notificationsApi.markAllRead,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
 
   const handleSwitchFamily = async (familyId: string) => {
     if (!user || familyId === user.activeFamilyId) return;
@@ -61,6 +80,55 @@ export default function Navbar() {
                     {family.name} ({family.role === 'admin' ? 'Amministratore' : 'Membro'})
                   </NavDropdown.Item>
                 ))}
+              </NavDropdown>
+            )}
+            {user && (
+              <NavDropdown
+                title={
+                  <span className="position-relative d-inline-flex align-items-center">
+                    <FaBell />
+                    {(notificationsQuery.data?.unreadCount || 0) > 0 && (
+                      <span
+                        className="position-absolute badge rounded-pill bg-danger"
+                        style={{ top: -10, right: -14, fontSize: 10 }}
+                      >
+                        {notificationsQuery.data!.unreadCount > 99 ? '99+' : notificationsQuery.data!.unreadCount}
+                      </span>
+                    )}
+                  </span>
+                }
+                id="notifications-dropdown"
+                align="end"
+              >
+                <div className="px-3 py-2 d-flex justify-content-between align-items-center" style={{ minWidth: 320 }}>
+                  <strong>Notifiche</strong>
+                  <button
+                    type="button"
+                    className="btn btn-link btn-sm p-0"
+                    onClick={() => markAllReadMutation.mutate()}
+                    disabled={markAllReadMutation.isPending}
+                  >
+                    Segna tutte lette
+                  </button>
+                </div>
+                <NavDropdown.Divider />
+                {notificationsQuery.data?.items?.length ? (
+                  notificationsQuery.data.items.map((notification) => (
+                    <NavDropdown.Item
+                      key={notification.id}
+                      onClick={() => {
+                        if (!notification.isRead) {
+                          markReadMutation.mutate(notification.id);
+                        }
+                      }}
+                    >
+                      <div className="fw-semibold">{notification.title}</div>
+                      <div className="small text-muted">{notification.message}</div>
+                    </NavDropdown.Item>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-muted small">Nessuna notifica</div>
+                )}
               </NavDropdown>
             )}
             {user && (

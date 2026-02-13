@@ -1,4 +1,4 @@
-import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, FamilyInvite, CitySearchResult, FormerFamilyMembership, FamilyFormerMember } from '@/types';
+import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, FamilyInvite, CitySearchResult, FormerFamilyMembership, FamilyFormerMember, AppNotification, ChatMessage } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -32,6 +32,20 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
+    if (
+      typeof window !== 'undefined' &&
+      response.status === 403 &&
+      (error.code === 'NO_ACTIVE_FAMILY' ||
+        String(error.error || '').includes('No active family membership') ||
+        String(error.error || '').includes('Non fai più parte di nessuna famiglia'))
+    ) {
+      window.localStorage.removeItem('activeFamilyId');
+      window.sessionStorage.setItem(
+        'authNotice',
+        'Non fai più parte di nessuna famiglia. Registrati per crearne una nuova oppure attendi un nuovo invito.'
+      );
+      window.location.href = '/login?error=no_family';
+    }
     throw new Error(error.error || 'Request failed');
   }
 
@@ -148,6 +162,10 @@ export const familyApi = {
     fetchApi<{ success: boolean }>(`/api/family/former-members/${userId}/rejoin`, {
       method: 'POST',
     }),
+  removeFormerMember: (userId: string) =>
+    fetchApi<{ success: boolean }>(`/api/family/former-members/${userId}/remove`, {
+      method: 'POST',
+    }),
   regenerateAuthCode: () =>
     fetchApi<{ authCode: string }>('/api/family/auth-code/regenerate', { method: 'POST' }),
   invite: (email: string) => fetchApi<{ invite: FamilyInvite }>('/api/family/invite', {
@@ -173,6 +191,25 @@ export const weatherApi = {
     fetchApi<{ results: CitySearchResult[] }>(
       `/api/weather/cities?query=${encodeURIComponent(query)}&scope=${scope}`
     ),
+};
+
+export const notificationsApi = {
+  list: (limit = 20) =>
+    fetchApi<{ items: AppNotification[]; unreadCount: number }>(`/api/notifications?limit=${limit}`),
+  markRead: (id: string) =>
+    fetchApi<{ success: boolean }>(`/api/notifications/${id}/read`, { method: 'POST' }),
+  markAllRead: () =>
+    fetchApi<{ success: boolean }>('/api/notifications/read-all', { method: 'POST' }),
+};
+
+export const chatApi = {
+  listMessages: (limit = 100) =>
+    fetchApi<ChatMessage[]>(`/api/chat/messages?limit=${limit}`),
+  sendMessage: (content: string) =>
+    fetchApi<ChatMessage>('/api/chat/messages', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
 };
 
 // Stats

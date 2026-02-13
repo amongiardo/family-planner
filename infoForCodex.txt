@@ -159,3 +159,11 @@ Changelog
 - 2026-02-13: Impostazioni: aggiunto box admin "Storico Membri che Hanno Abbandonato" con azione diretta "Fai Rientrare" (nuove API `/api/family/former-members` e `/api/family/former-members/:userId/rejoin`).
 - 2026-02-13: UI ruoli allineata in italiano: `admin` -> `Amministratore`, `member` -> `Membro` (riepilogo impostazioni, liste famiglie/membri, navbar family selector).
 - 2026-02-13: Riepilogo impostazioni (sezione membri): mostrato ruolo tra parentesi per ogni membro e label `Io` al posto del nome dell'utente corrente.
+- 2026-02-13: Membership lifecycle esteso: nuovo stato `removed` per ex-membri eliminati definitivamente (storico preservato, rientro diretto disabilitato).
+- 2026-02-13: Impostazioni: ex-famiglie con badge rosso `Eliminato`; se eliminato non mostra più azioni `Rientra in Famiglia`/`Esci definitivamente`.
+- 2026-02-13: Impostazioni admin: storico membri usciti con doppia azione (`Fai Rientrare` oppure `Rimuovi definitivamente`), mantenendo traccia anche dopo rimozione definitiva.
+- 2026-02-13: Login hardening no-family: se utente non ha famiglie attive viene disconnesso/bloccato (`NO_ACTIVE_FAMILY`) con messaggio guidato; reintegro possibile tramite nuovo invito.
+- 2026-02-13: Frontend guard globale: su risposta 403 no-family l'app effettua logout forzato e redirect a `/login?error=no_family` anche durante azioni utente.
+- 2026-02-13: Notifiche utente introdotte: nuove API `/api/notifications` con polling frontend e campanella in navbar con badge unread.
+- 2026-02-13: Chat famiglia introdotta: nuove API `/api/chat/messages`, nuova pagina `/chat`, menu sidebar dedicato e notifiche automatiche ai membri (escluso mittente).
+- 2026-02-13: Chat sistema: quando un membro abbandona la famiglia viene scritto un messaggio di sistema persistente visibile agli altri membri.
