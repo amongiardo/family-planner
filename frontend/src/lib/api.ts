@@ -205,10 +205,10 @@ export const notificationsApi = {
 export const chatApi = {
   listMessages: (limit = 100) =>
     fetchApi<ChatMessage[]>(`/api/chat/messages?limit=${limit}`),
-  sendMessage: (content: string) =>
+  sendMessage: (content: string, recipientUserId?: string) =>
     fetchApi<ChatMessage>('/api/chat/messages', {
       method: 'POST',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, recipientUserId }),
     }),
 };
 

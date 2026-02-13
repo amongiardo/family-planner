@@ -58,6 +58,13 @@ Questo file traccia in modo sintetico le modifiche schema/database applicate tra
   - infrastruttura notifiche utente con polling.
   - chat famiglia persistente con messaggi utente/sistema.
 
+### `20260214004000_chat_private_recipient`
+- Tabella: `chat_messages`
+- Aggiunta colonna:
+  - `recipient_user_id` (`TEXT`, nullable, FK -> `users.id`)
+- Effetto:
+  - supporto messaggi privati in chat famiglia (visibili solo a mittente/destinatario).
+
 ## Note operative
 - Per allineare DB locale a queste modifiche usare:
   - `./scripts/update_local.sh`

@@ -63,6 +63,7 @@ model User {
   deletedFamilies Family[] @relation("family_deleted_by")
   notifications Notification[]
   chatMessagesSent ChatMessage[] @relation("chat_message_sender")
+  chatMessagesReceived ChatMessage[] @relation("chat_message_recipient")
 
   @@unique([oauthProvider, oauthId])
   @@map("users")
@@ -191,15 +192,18 @@ model ChatMessage {
   id           String   @id @default(uuid())
   familyId     String   @map("family_id")
   senderUserId String?  @map("sender_user_id")
+  recipientUserId String? @map("recipient_user_id")
   messageType  String   @default("user") @map("message_type")
   content      String
   createdAt    DateTime @default(now()) @map("created_at")
 
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
   sender User?  @relation("chat_message_sender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  recipient User? @relation("chat_message_recipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
 
   @@index([familyId, createdAt])
   @@index([senderUserId])
+  @@index([recipientUserId])
   @@map("chat_messages")
 }
 

@@ -99,10 +99,17 @@ export interface ChatMessage {
   id: string;
   familyId: string;
   senderUserId?: string | null;
+  recipientUserId?: string | null;
   messageType: 'user' | 'system';
   content: string;
   createdAt: string;
   sender?: {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string | null;
+  } | null;
+  recipient?: {
     id: string;
     name: string;
     email: string;

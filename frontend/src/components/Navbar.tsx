@@ -84,6 +84,7 @@ export default function Navbar() {
             )}
             {user && (
               <NavDropdown
+                className="notifications-dropdown"
                 title={
                   <span className="position-relative d-inline-flex align-items-center">
                     <FaBell />
@@ -100,11 +101,11 @@ export default function Navbar() {
                 id="notifications-dropdown"
                 align="end"
               >
-                <div className="px-3 py-2 d-flex justify-content-between align-items-center" style={{ minWidth: 320 }}>
-                  <strong>Notifiche</strong>
+                <div className="notifications-menu-header d-flex justify-content-between align-items-center">
+                  <strong className="notifications-menu-title">Notifiche</strong>
                   <button
                     type="button"
-                    className="btn btn-link btn-sm p-0"
+                    className="notifications-readall-btn"
                     onClick={() => markAllReadMutation.mutate()}
                     disabled={markAllReadMutation.isPending}
                   >
@@ -116,18 +117,19 @@ export default function Navbar() {
                   notificationsQuery.data.items.map((notification) => (
                     <NavDropdown.Item
                       key={notification.id}
+                      className={`notifications-item ${notification.isRead ? '' : 'notifications-item-unread'}`}
                       onClick={() => {
                         if (!notification.isRead) {
                           markReadMutation.mutate(notification.id);
                         }
                       }}
                     >
-                      <div className="fw-semibold">{notification.title}</div>
-                      <div className="small text-muted">{notification.message}</div>
+                      <div className="fw-semibold notifications-item-title">{notification.title}</div>
+                      <div className="small notifications-item-message">{notification.message}</div>
                     </NavDropdown.Item>
                   ))
                 ) : (
-                  <div className="px-3 py-2 text-muted small">Nessuna notifica</div>
+                  <div className="px-3 py-2 notifications-empty small">Nessuna notifica</div>
                 )}
               </NavDropdown>
             )}

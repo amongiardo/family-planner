@@ -806,6 +806,67 @@ body::after {
   color: #2f2a3a;
 }
 
+.app-navbar .notifications-dropdown .dropdown-menu {
+  min-width: 340px;
+  background: linear-gradient(180deg, rgba(26, 91, 194, 0.96), rgba(17, 69, 156, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.app-navbar .notifications-menu-header {
+  padding: 10px 12px;
+}
+
+.app-navbar .notifications-menu-title {
+  color: #fff;
+}
+
+.app-navbar .notifications-readall-btn {
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.app-navbar .notifications-readall-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.app-navbar .notifications-readall-btn:disabled {
+  opacity: 0.6;
+}
+
+.app-navbar .notifications-dropdown .dropdown-divider {
+  border-top-color: rgba(255, 255, 255, 0.35);
+}
+
+.app-navbar .notifications-item {
+  color: #fff;
+}
+
+.app-navbar .notifications-item:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.app-navbar .notifications-item-unread {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-navbar .notifications-item-title {
+  color: #fff;
+}
+
+.app-navbar .notifications-item-message {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.app-navbar .notifications-empty {
+  color: rgba(255, 255, 255, 0.82);
+}
+
 .export-download-wrap a {
   text-decoration: underline;
 }

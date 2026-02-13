@@ -167,3 +167,6 @@ Changelog
 - 2026-02-13: Notifiche utente introdotte: nuove API `/api/notifications` con polling frontend e campanella in navbar con badge unread.
 - 2026-02-13: Chat famiglia introdotta: nuove API `/api/chat/messages`, nuova pagina `/chat`, menu sidebar dedicato e notifiche automatiche ai membri (escluso mittente).
 - 2026-02-13: Chat sistema: quando un membro abbandona la famiglia viene scritto un messaggio di sistema persistente visibile agli altri membri.
+- 2026-02-13: Chat privata per membro: supporto backend `recipient_user_id` con visibilità filtrata (mittente/destinatario) e invio diretto da pagina chat.
+- 2026-02-13: Notifiche chat migliorate: messaggio notifica con preview contenuto (`Nome: testo...`) invece di testo generico.
+- 2026-02-13: UX campanella: dropdown notifiche con sfondo blu, item unread evidenziati e pulsante `Segna tutte lette` stilizzato.
