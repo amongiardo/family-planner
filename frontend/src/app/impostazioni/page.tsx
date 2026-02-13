@@ -48,9 +48,10 @@ export default function ImpostazioniPage() {
   const [success, setSuccess] = useState('');
   const [pendingInviteDelete, setPendingInviteDelete] = useState<string | null>(null);
   const [pendingFamilyDelete, setPendingFamilyDelete] = useState<{ id: string; name: string; isActive: boolean } | null>(null);
-  const [pendingLeaveFamily, setPendingLeaveFamily] = useState<{ id: string; name: string } | null>(null);
+  const [pendingLeaveFamily, setPendingLeaveFamily] = useState<{ id: string; name: string; isActive: boolean } | null>(null);
   const [pendingForgetFamily, setPendingForgetFamily] = useState<{ id: string; name: string } | null>(null);
   const [targetFamilyId, setTargetFamilyId] = useState<string>('');
+  const [leaveTargetFamilyId, setLeaveTargetFamilyId] = useState<string>('');
   const [deleteFamilyAuthCode, setDeleteFamilyAuthCode] = useState('');
 
   const { data: family, isLoading } = useQuery<Family>({
@@ -62,6 +63,12 @@ export default function ImpostazioniPage() {
   const { data: invites, isLoading: invitesLoading } = useQuery({
     queryKey: ['invites'],
     queryFn: familyApi.getInvites,
+    enabled: isAdmin && hasActiveFamily,
+  });
+
+  const { data: formerMembers, isLoading: formerMembersLoading } = useQuery({
+    queryKey: ['family', 'former-members'],
+    queryFn: familyApi.getFormerMembers,
     enabled: isAdmin && hasActiveFamily,
   });
 
@@ -178,6 +185,17 @@ export default function ImpostazioniPage() {
     },
   });
 
+  const rejoinFormerMemberMutation = useMutation({
+    mutationFn: (userId: string) => familyApi.rejoinFormerMember(userId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['family'] });
+      await queryClient.invalidateQueries({ queryKey: ['family', 'former-members'] });
+      setSuccess('Membro riammesso in famiglia');
+      setTimeout(() => setSuccess(''), 3000);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
   const deleteFamilyMutation = useMutation({
     mutationFn: ({ familyId, authCode, targetFamilyId }: { familyId: string; authCode: string; targetFamilyId?: string }) =>
       familyApi.deleteFamily(familyId, authCode, targetFamilyId),
@@ -200,7 +218,8 @@ export default function ImpostazioniPage() {
   });
 
   const leaveFamilyMutation = useMutation({
-    mutationFn: (familyId: string) => familyApi.leaveFamily(familyId),
+    mutationFn: ({ familyId, targetFamilyId }: { familyId: string; targetFamilyId?: string }) =>
+      familyApi.leaveFamily(familyId, targetFamilyId),
     onSuccess: async (data) => {
       if (typeof window !== 'undefined') {
         if (data.activeFamilyId) {
@@ -394,15 +413,21 @@ export default function ImpostazioniPage() {
             <Card.Header>Riepilogo</Card.Header>
             <Card.Body>
               <Row className="g-3">
-                <Col md={4}>
+                <Col md={3}>
                   <div className="fw-bold">Famiglia</div>
                   <div className="text-muted">{family?.name || '—'}</div>
                 </Col>
-                <Col md={4}>
+                <Col md={3}>
+                  <div className="fw-bold">Ruolo</div>
+                  <div className="text-muted">
+                    {family?.role ? (family.role === 'admin' ? 'Amministratore' : 'Membro') : '—'}
+                  </div>
+                </Col>
+                <Col md={3}>
                   <div className="fw-bold">Città</div>
                   <div className="text-muted">{family?.cityDisplayName || family?.city || '—'}</div>
                 </Col>
-                <Col md={4}>
+                <Col md={3}>
                   <div className="fw-bold">Membri</div>
                   {family?.users && family.users.length > 0 && (
                     <div className="mt-2">
@@ -432,40 +457,46 @@ export default function ImpostazioniPage() {
                   <div className="text-muted">{user?.email || '—'}</div>
                 </Col>
               </Row>
-              <Form.Label className="fw-bold">Codice di autenticazione utente</Form.Label>
-              <InputGroup>
-                <Form.Control
-                  type="text"
-                  value={user?.authCode || ''}
-                  disabled
-                  placeholder="—"
-                  className="auth-code-display-soft"
-                />
-                <Button
-                  variant="outline-primary"
-                  className="btn-primary-soft"
-                  onClick={handleCopyAuthCode}
-                  disabled={!user?.authCode}
-                  title="Copia codice"
-                >
-                  {copiedAuthCode ? <FaCheck /> : <FaCopy />}
-                </Button>
-                <Button
-                  variant="outline-primary"
-                  className="btn-primary-soft"
-                  onClick={() => regenerateAuthCodeMutation.mutate()}
-                  disabled={regenerateAuthCodeMutation.isPending}
-                >
-                  {regenerateAuthCodeMutation.isPending ? (
-                    <Spinner size="sm" animation="border" />
-                  ) : (
-                    'Rigenera'
-                  )}
-                </Button>
-              </InputGroup>
-              <Form.Text className="text-muted">
-                È personale per account (stessa email), uguale su tutte le famiglie.
-              </Form.Text>
+              {isAdmin ? (
+                <>
+                  <Form.Label className="fw-bold">Codice di autenticazione utente</Form.Label>
+                  <InputGroup>
+                    <Form.Control
+                      type="text"
+                      value={user?.authCode || ''}
+                      disabled
+                      placeholder="—"
+                      className="auth-code-display-soft"
+                    />
+                    <Button
+                      variant="outline-primary"
+                      className="btn-primary-soft"
+                      onClick={handleCopyAuthCode}
+                      disabled={!user?.authCode}
+                      title="Copia codice"
+                    >
+                      {copiedAuthCode ? <FaCheck /> : <FaCopy />}
+                    </Button>
+                    <Button
+                      variant="outline-primary"
+                      className="btn-primary-soft"
+                      onClick={() => regenerateAuthCodeMutation.mutate()}
+                      disabled={regenerateAuthCodeMutation.isPending}
+                    >
+                      {regenerateAuthCodeMutation.isPending ? (
+                        <Spinner size="sm" animation="border" />
+                      ) : (
+                        'Rigenera'
+                      )}
+                    </Button>
+                  </InputGroup>
+                  <Form.Text className="text-muted">
+                    È personale per account (stessa email), uguale su tutte le famiglie.
+                  </Form.Text>
+                </>
+              ) : (
+                <div className="text-muted">Codice di autenticazione visibile solo agli admin.</div>
+              )}
             </Card.Body>
           </Card>
         </Col>
@@ -573,7 +604,7 @@ export default function ImpostazioniPage() {
                             )}
                           </div>
                           <div className="small text-muted">
-                            Membri: {familyItem.membersCount} • Ruolo: {familyItem.role === 'admin' ? 'Admin' : 'Member'}
+                            Membri: {familyItem.membersCount} • Ruolo: {familyItem.role === 'admin' ? 'Amministratore' : 'Membro'}
                           </div>
                         </div>
                         <div className="d-flex gap-2">
@@ -602,8 +633,12 @@ export default function ImpostazioniPage() {
                               size="sm"
                               variant="outline-danger"
                               className="btn-danger-soft"
-                              onClick={() => setPendingLeaveFamily({ id: familyItem.id, name: familyItem.name })}
-                              disabled={leaveFamilyMutation.isPending}
+                              onClick={() => {
+                                setPendingLeaveFamily({ id: familyItem.id, name: familyItem.name, isActive: isCurrent });
+                                setLeaveTargetFamilyId('');
+                              }}
+                              disabled={leaveFamilyMutation.isPending || isOnlyFamily}
+                              title={isOnlyFamily ? 'Non puoi abbandonare l\'unica famiglia' : undefined}
                             >
                               Abbandona
                             </Button>
@@ -633,7 +668,7 @@ export default function ImpostazioniPage() {
                       <div>
                         <div className="fw-medium">{familyItem.name}</div>
                         <div className="small text-muted">
-                          Membri: {familyItem.membersCount} • Ruolo precedente: {familyItem.role === 'admin' ? 'Admin' : 'Member'}
+                          Membri: {familyItem.membersCount} • Ruolo precedente: {familyItem.role === 'admin' ? 'Amministratore' : 'Membro'}
                         </div>
                         {(familyItem.creatorName || familyItem.creatorEmail) && (
                           <div className="small text-muted">
@@ -666,7 +701,7 @@ export default function ImpostazioniPage() {
                           onClick={() => setPendingForgetFamily({ id: familyItem.id, name: familyItem.name })}
                           disabled={forgetFamilyMutation.isPending}
                         >
-                          Rimuovi Definitivamente
+                          Esci definitivamente
                         </Button>
                       </div>
                     </div>
@@ -711,7 +746,7 @@ export default function ImpostazioniPage() {
                         </Badge>
                       )}
                       <Badge bg={member.role === 'admin' ? 'success' : 'secondary'} className="ms-2">
-                        {member.role === 'admin' ? 'Admin' : 'Member'}
+                        {member.role === 'admin' ? 'Amministratore' : 'Membro'}
                       </Badge>
                     </div>
                     <small className="text-muted">{member.email}</small>
@@ -730,8 +765,8 @@ export default function ImpostazioniPage() {
                           }
                         }}
                       >
-                        <option value="admin">Admin</option>
-                        <option value="member">Member</option>
+                        <option value="admin">Amministratore</option>
+                        <option value="member">Membro</option>
                       </Form.Select>
                     </div>
                   )}
@@ -742,6 +777,48 @@ export default function ImpostazioniPage() {
               <Card.Body className="text-muted">Nessuna famiglia attiva selezionata.</Card.Body>
             )}
           </Card>
+
+          {hasActiveFamily && isAdmin && (
+            <Card className="mb-4 settings-card">
+              <Card.Header>Storico Membri che Hanno Abbandonato</Card.Header>
+              {formerMembersLoading ? (
+                <Card.Body className="text-center">
+                  <Spinner size="sm" animation="border" variant="success" />
+                </Card.Body>
+              ) : formerMembers && formerMembers.length > 0 ? (
+                <ListGroup variant="flush" className="settings-list">
+                  {formerMembers.map((member) => (
+                    <ListGroup.Item key={member.id}>
+                      <div className="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                        <div>
+                          <div className="fw-medium">{member.name}</div>
+                          <div className="small text-muted">
+                            {member.email} • Ruolo precedente: {member.previousRole === 'admin' ? 'Amministratore' : 'Membro'}
+                          </div>
+                          {member.leftAt && (
+                            <div className="small text-muted">
+                              Uscito il {format(parseISO(member.leftAt), 'd MMM yyyy', { locale: it })}
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          className="btn-primary-soft"
+                          onClick={() => rejoinFormerMemberMutation.mutate(member.id)}
+                          disabled={rejoinFormerMemberMutation.isPending}
+                        >
+                          Fai Rientrare
+                        </Button>
+                      </div>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              ) : (
+                <Card.Body className="text-muted">Nessun membro ha abbandonato questa famiglia.</Card.Body>
+              )}
+            </Card>
+          )}
 
           {!hasActiveFamily ? (
             <Card className="mb-4">
@@ -966,18 +1043,74 @@ export default function ImpostazioniPage() {
         </Modal.Footer>
       </Modal>
 
-      <ConfirmModal
+      <Modal
         show={Boolean(pendingLeaveFamily)}
-        message={`Abbandonare la famiglia "${pendingLeaveFamily?.name}"?`}
-        onCancel={() => setPendingLeaveFamily(null)}
-        confirmLabel="Abbandona"
-        onConfirm={() => {
-          if (pendingLeaveFamily) {
-            leaveFamilyMutation.mutate(pendingLeaveFamily.id);
-          }
+        onHide={() => {
+          if (leaveFamilyMutation.isPending) return;
           setPendingLeaveFamily(null);
+          setLeaveTargetFamilyId('');
         }}
-      />
+        centered
+        dialogClassName="app-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Abbandona Famiglia</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="mb-3">
+            Abbandonare la famiglia &quot;{pendingLeaveFamily?.name}&quot;?
+          </div>
+          {pendingLeaveFamily?.isActive && myFamilies?.families && myFamilies.families.length > 1 && (
+            <Form.Group className="mb-2">
+              <Form.Label>Seleziona la famiglia su cui vuoi passare</Form.Label>
+              <Form.Select
+                value={leaveTargetFamilyId}
+                onChange={(e) => setLeaveTargetFamilyId(e.target.value)}
+              >
+                <option value="">Seleziona una famiglia...</option>
+                {myFamilies.families
+                  .filter((f) => f.id !== pendingLeaveFamily.id)
+                  .map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+              </Form.Select>
+            </Form.Group>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-danger"
+            className="btn-danger-soft"
+            onClick={() => {
+              setPendingLeaveFamily(null);
+              setLeaveTargetFamilyId('');
+            }}
+            disabled={leaveFamilyMutation.isPending}
+          >
+            Annulla
+          </Button>
+          <Button
+            variant="primary"
+            disabled={
+              leaveFamilyMutation.isPending ||
+              (pendingLeaveFamily?.isActive && myFamilies?.families && myFamilies.families.length > 1 && !leaveTargetFamilyId)
+            }
+            onClick={() => {
+              if (!pendingLeaveFamily) return;
+              leaveFamilyMutation.mutate({
+                familyId: pendingLeaveFamily.id,
+                targetFamilyId: pendingLeaveFamily.isActive ? leaveTargetFamilyId : undefined,
+              });
+              setPendingLeaveFamily(null);
+              setLeaveTargetFamilyId('');
+            }}
+          >
+            {leaveFamilyMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Abbandona'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <ConfirmModal
         show={Boolean(pendingForgetFamily)}

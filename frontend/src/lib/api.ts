@@ -1,4 +1,4 @@
-import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, FamilyInvite, CitySearchResult, FormerFamilyMembership } from '@/types';
+import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, FamilyInvite, CitySearchResult, FormerFamilyMembership, FamilyFormerMember } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -110,9 +110,10 @@ export const familyApi = {
       headers: authCodeHeaders(authCode),
       body: targetFamilyId ? JSON.stringify({ targetFamilyId }) : undefined,
     }),
-  leaveFamily: (familyId: string) =>
+  leaveFamily: (familyId: string, targetFamilyId?: string) =>
     fetchApi<{ success: boolean; activeFamilyId: string | null }>(`/api/family/${familyId}/leave`, {
       method: 'POST',
+      body: targetFamilyId ? JSON.stringify({ targetFamilyId }) : undefined,
     }),
   rejoinFamily: (familyId: string) =>
     fetchApi<{ success: boolean; activeFamilyId: string }>(`/api/family/${familyId}/rejoin`, {
@@ -141,6 +142,11 @@ export const familyApi = {
     fetchApi<{ user: { id: string; role: 'admin' | 'member' } }>(`/api/family/members/${userId}/role`, {
       method: 'PUT',
       body: JSON.stringify({ role }),
+    }),
+  getFormerMembers: () => fetchApi<FamilyFormerMember[]>('/api/family/former-members'),
+  rejoinFormerMember: (userId: string) =>
+    fetchApi<{ success: boolean }>(`/api/family/former-members/${userId}/rejoin`, {
+      method: 'POST',
     }),
   regenerateAuthCode: () =>
     fetchApi<{ authCode: string }>('/api/family/auth-code/regenerate', { method: 'POST' }),

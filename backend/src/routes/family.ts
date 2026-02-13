@@ -312,6 +312,8 @@ router.post('/:familyId/leave', isLoggedIn, async (req, res, next) => {
   try {
     const { familyId } = req.params;
     const userId = req.user!.id;
+    const { targetFamilyId } = (req.body ?? {}) as { targetFamilyId?: string };
+    const isLeavingActiveFamily = req.session.activeFamilyId === familyId;
 
     const membership = await prisma.familyMember.findUnique({
       where: { familyId_userId: { familyId, userId } },
@@ -337,18 +339,50 @@ router.post('/:familyId/leave', isLoggedIn, async (req, res, next) => {
       return res.status(400).json({ error: 'Gli admin non possono abbandonare la famiglia da questa azione' });
     }
 
+    const activeFamiliesCount = await prisma.familyMember.count({
+      where: {
+        userId,
+        status: 'active',
+        family: { deletedAt: null },
+      },
+    });
+    if (activeFamiliesCount <= 1) {
+      return res.status(400).json({ error: 'Non puoi abbandonare l’unica famiglia di cui fai parte' });
+    }
+
+    if (isLeavingActiveFamily) {
+      if (!targetFamilyId || typeof targetFamilyId !== 'string') {
+        return res.status(400).json({ error: 'Seleziona la famiglia di destinazione prima di abbandonare quella attiva' });
+      }
+
+      if (targetFamilyId === familyId) {
+        return res.status(400).json({ error: 'La famiglia di destinazione deve essere diversa da quella da abbandonare' });
+      }
+
+      const targetMembership = await prisma.familyMember.findUnique({
+        where: { familyId_userId: { familyId: targetFamilyId, userId } },
+        select: {
+          status: true,
+          family: {
+            select: {
+              deletedAt: true,
+            },
+          },
+        },
+      });
+
+      if (targetMembership?.status !== 'active' || targetMembership.family.deletedAt) {
+        return res.status(400).json({ error: 'La famiglia di destinazione non è valida' });
+      }
+    }
+
     await prisma.familyMember.update({
       where: { familyId_userId: { familyId, userId } },
       data: { status: 'left', leftAt: new Date() },
     });
 
-    if (req.session.activeFamilyId === familyId) {
-      const fallback = await prisma.familyMember.findFirst({
-        where: { userId, status: 'active', family: { deletedAt: null } },
-        orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
-        select: { familyId: true },
-      });
-      req.session.activeFamilyId = fallback?.familyId;
+    if (isLeavingActiveFamily && targetFamilyId) {
+      req.session.activeFamilyId = targetFamilyId;
     }
 
     res.json({ success: true, activeFamilyId: req.session.activeFamilyId || null });
@@ -801,6 +835,76 @@ router.put('/members/:userId/role', isAuthenticated, requireAdmin, async (req, r
     });
 
     res.json({ user: { id: updated.userId, role: updated.role } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// List members who left active family (admin only)
+router.get('/former-members', isAuthenticated, requireAdmin, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+
+    const formerMembers = await prisma.familyMember.findMany({
+      where: {
+        familyId,
+        status: 'left',
+      },
+      select: {
+        userId: true,
+        role: true,
+        leftAt: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: [{ leftAt: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    res.json(
+      formerMembers.map((member) => ({
+        id: member.user.id,
+        name: member.user.name,
+        email: member.user.email,
+        avatarUrl: member.user.avatarUrl,
+        previousRole: member.role,
+        leftAt: member.leftAt,
+      }))
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Re-activate a former member in active family (admin only)
+router.post('/former-members/:userId/rejoin', isAuthenticated, requireAdmin, async (req, res, next) => {
+  try {
+    const familyId = getFamilyId(req);
+    const { userId } = req.params;
+
+    const membership = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId } },
+      select: { status: true },
+    });
+
+    if (!membership || membership.status !== 'left') {
+      return res.status(404).json({ error: 'Former member not found' });
+    }
+
+    await prisma.familyMember.update({
+      where: { familyId_userId: { familyId, userId } },
+      data: {
+        status: 'active',
+        leftAt: null,
+      },
+    });
+
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

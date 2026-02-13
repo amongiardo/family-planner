@@ -14,6 +14,12 @@ export default function Navbar() {
 
   const activeFamily = user?.families?.find((family) => family.id === user.activeFamilyId);
   const homeHref = user?.activeFamilyId ? '/dashboard' : '/impostazioni';
+  const activeFamilyRoleLabel =
+    activeFamily?.role === 'admin'
+      ? 'Amministratore'
+      : activeFamily?.role === 'member'
+        ? 'Membro'
+        : null;
 
   const handleSwitchFamily = async (familyId: string) => {
     if (!user || familyId === user.activeFamilyId) return;
@@ -42,7 +48,7 @@ export default function Navbar() {
           <Nav>
             {user?.families && user.families.length > 0 && (
               <NavDropdown
-                title={`Famiglia: ${activeFamily?.name ?? user.families[0].name}`}
+                title={`Famiglia: ${activeFamily?.name ?? user.families[0].name}${activeFamilyRoleLabel ? ` (${activeFamilyRoleLabel})` : ''}`}
                 id="family-dropdown"
                 align="end"
               >
@@ -52,7 +58,7 @@ export default function Navbar() {
                     active={family.id === user.activeFamilyId}
                     onClick={() => handleSwitchFamily(family.id)}
                   >
-                    {family.name} ({family.role === 'admin' ? 'Admin' : 'Member'})
+                    {family.name} ({family.role === 'admin' ? 'Amministratore' : 'Membro'})
                   </NavDropdown.Item>
                 ))}
               </NavDropdown>

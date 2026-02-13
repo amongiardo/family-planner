@@ -155,3 +155,6 @@ Changelog
 - 2026-02-13: Frontend anti-pagina-bianca: redirect centralizzati verso `/impostazioni` quando utente autenticato ma senza `activeFamilyId` (home/login/layout/dashboard/invite/settings).
 - 2026-02-13: Impostazioni storico famiglie esteso: mostra chi ha creato la famiglia (nome/email), stato famiglia eliminata e chi l'ha eliminata; pulsante rientro disabilitato su famiglie eliminate.
 - 2026-02-13: Build verificate dopo refactor finale: backend (`prisma generate` + `tsc`) e frontend (`next build`) OK.
+- 2026-02-13: Abbandono famiglia hardening: se l'utente abbandona la famiglia attiva deve selezionare obbligatoriamente una famiglia di destinazione (`targetFamilyId`) valida; enforcement lato backend + modale frontend dedicata.
+- 2026-02-13: Impostazioni: aggiunto box admin "Storico Membri che Hanno Abbandonato" con azione diretta "Fai Rientrare" (nuove API `/api/family/former-members` e `/api/family/former-members/:userId/rejoin`).
+- 2026-02-13: UI ruoli allineata in italiano: `admin` -> `Amministratore`, `member` -> `Membro` (riepilogo impostazioni, liste famiglie/membri, navbar family selector).

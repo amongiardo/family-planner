@@ -69,6 +69,15 @@ export interface FamilyMember {
   role: 'admin' | 'member';
 }
 
+export interface FamilyFormerMember {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string;
+  previousRole: 'admin' | 'member';
+  leftAt?: string | null;
+}
+
 export type DishCategory = 'primo' | 'secondo' | 'contorno';
 
 export interface Dish {
