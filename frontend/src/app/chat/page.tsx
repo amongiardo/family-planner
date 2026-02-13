@@ -14,8 +14,9 @@ export default function ChatPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [familyContent, setFamilyContent] = useState('');
-  const [privateContent, setPrivateContent] = useState('');
-  const [selectedPrivateMemberId, setSelectedPrivateMemberId] = useState('');
+  const [newPrivateMemberId, setNewPrivateMemberId] = useState('');
+  const [manualThreadMemberIds, setManualThreadMemberIds] = useState<string[]>([]);
+  const [privateDraftByMemberId, setPrivateDraftByMemberId] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
 
   const { data: family } = useQuery({
@@ -45,8 +46,11 @@ export default function ChatPage() {
   const sendPrivateMessageMutation = useMutation({
     mutationFn: ({ text, recipientId }: { text: string; recipientId: string }) =>
       chatApi.sendMessage(text, recipientId),
-    onSuccess: () => {
-      setPrivateContent('');
+    onSuccess: (_, vars) => {
+      setPrivateDraftByMemberId((prev) => ({
+        ...prev,
+        [vars.recipientId]: '',
+      }));
       queryClient.invalidateQueries({ queryKey: ['chat', 'messages'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
@@ -60,44 +64,133 @@ export default function ChatPage() {
       ),
     [messages]
   );
+
   const familyMembers = useMemo(() => family?.users ?? [], [family]);
   const otherMembers = useMemo(
     () => familyMembers.filter((member) => member.id !== user?.id),
     [familyMembers, user?.id]
   );
 
-  useEffect(() => {
-    if (!otherMembers.length) {
-      setSelectedPrivateMemberId('');
-      return;
-    }
-    if (!selectedPrivateMemberId || !otherMembers.some((member) => member.id === selectedPrivateMemberId)) {
-      setSelectedPrivateMemberId(otherMembers[0].id);
-    }
-  }, [otherMembers, selectedPrivateMemberId]);
-
   const familyChatMessages = useMemo(
     () => sortedMessages.filter((message) => !message.recipientUserId),
     [sortedMessages]
   );
 
-  const privateThreadMessages = useMemo(
-    () =>
-      sortedMessages.filter((message) => {
-        if (!selectedPrivateMemberId || !message.recipientUserId) return false;
-        const me = user?.id;
-        return (
-          (message.senderUserId === me && message.recipientUserId === selectedPrivateMemberId) ||
-          (message.senderUserId === selectedPrivateMemberId && message.recipientUserId === me)
-        );
-      }),
-    [selectedPrivateMemberId, sortedMessages, user?.id]
+  const privateMessages = useMemo(
+    () => sortedMessages.filter((message) => Boolean(message.recipientUserId)),
+    [sortedMessages]
   );
 
-  const selectedPrivateMember = useMemo(
-    () => otherMembers.find((member) => member.id === selectedPrivateMemberId) ?? null,
-    [otherMembers, selectedPrivateMemberId]
+  const privateThreadMemberIdsFromMessages = useMemo(() => {
+    const me = user?.id;
+    if (!me) return [] as string[];
+
+    const ids = new Set<string>();
+    for (const message of privateMessages) {
+      const senderId = message.senderUserId;
+      const recipientId = message.recipientUserId;
+      if (!senderId || !recipientId) continue;
+
+      if (senderId === me && recipientId !== me) {
+        ids.add(recipientId);
+      } else if (recipientId === me && senderId !== me) {
+        ids.add(senderId);
+      }
+    }
+
+    return Array.from(ids);
+  }, [privateMessages, user?.id]);
+
+  const privateThreadMessagesByMemberId = useMemo(() => {
+    const me = user?.id;
+    const grouped: Record<string, typeof privateMessages> = {};
+
+    if (!me) return grouped;
+
+    for (const message of privateMessages) {
+      const senderId = message.senderUserId;
+      const recipientId = message.recipientUserId;
+      if (!senderId || !recipientId) continue;
+
+      let otherMemberId: string | null = null;
+      if (senderId === me) {
+        otherMemberId = recipientId;
+      } else if (recipientId === me) {
+        otherMemberId = senderId;
+      }
+
+      if (!otherMemberId) continue;
+      if (!grouped[otherMemberId]) grouped[otherMemberId] = [];
+      grouped[otherMemberId].push(message);
+    }
+
+    return grouped;
+  }, [privateMessages, user?.id]);
+
+  const threadMembersSet = useMemo(() => {
+    const set = new Set(privateThreadMemberIdsFromMessages);
+    for (const memberId of manualThreadMemberIds) {
+      set.add(memberId);
+    }
+    return set;
+  }, [manualThreadMemberIds, privateThreadMemberIdsFromMessages]);
+
+  const privateThreadMembers = useMemo(() => {
+    const membersById = new Map(otherMembers.map((member) => [member.id, member]));
+    const latestByMemberId = new Map<string, number>();
+
+    for (const [memberId, threadMessages] of Object.entries(privateThreadMessagesByMemberId)) {
+      const lastMessage = threadMessages[threadMessages.length - 1];
+      latestByMemberId.set(memberId, new Date(lastMessage.createdAt).getTime());
+    }
+
+    return Array.from(threadMembersSet)
+      .map((memberId) => membersById.get(memberId))
+      .filter((member): member is NonNullable<typeof member> => Boolean(member))
+      .sort((a, b) => (latestByMemberId.get(b.id) ?? 0) - (latestByMemberId.get(a.id) ?? 0));
+  }, [otherMembers, threadMembersSet, privateThreadMessagesByMemberId]);
+
+  const privateAvailableMembers = useMemo(
+    () => otherMembers.filter((member) => !threadMembersSet.has(member.id)),
+    [otherMembers, threadMembersSet]
   );
+
+  useEffect(() => {
+    const validIds = new Set(otherMembers.map((member) => member.id));
+    setManualThreadMemberIds((prev) => prev.filter((memberId) => validIds.has(memberId)));
+  }, [otherMembers]);
+
+  useEffect(() => {
+    if (!privateAvailableMembers.length) {
+      setNewPrivateMemberId('');
+      return;
+    }
+
+    if (!newPrivateMemberId || !privateAvailableMembers.some((member) => member.id === newPrivateMemberId)) {
+      setNewPrivateMemberId(privateAvailableMembers[0].id);
+    }
+  }, [newPrivateMemberId, privateAvailableMembers]);
+
+  const submitFamilyMessage = () => {
+    const trimmed = familyContent.trim();
+    if (!trimmed || sendFamilyMessageMutation.isPending) return;
+    sendFamilyMessageMutation.mutate(trimmed);
+  };
+
+  const openPrivateThread = () => {
+    if (!newPrivateMemberId) return;
+    setManualThreadMemberIds((prev) => (prev.includes(newPrivateMemberId) ? prev : [...prev, newPrivateMemberId]));
+  };
+
+  const submitPrivateMessage = (memberId: string) => {
+    const trimmed = (privateDraftByMemberId[memberId] || '').trim();
+    if (!trimmed || sendPrivateMessageMutation.isPending) return;
+
+    sendPrivateMessageMutation.mutate({
+      text: trimmed,
+      recipientId: memberId,
+    });
+  };
 
   return (
     <DashboardLayout>
@@ -133,61 +226,54 @@ export default function ChatPage() {
         </Card.Body>
       </Card>
 
-      <Row className="g-4">
-        <Col lg={6}>
-          <Card className="settings-card mb-3">
-            <Card.Header>Chat Famiglia</Card.Header>
-            <Card.Body style={{ maxHeight: '52vh', overflowY: 'auto' }}>
-              {isLoading ? (
-                <div className="text-center py-4">
-                  <Spinner animation="border" variant="success" />
-                </div>
-              ) : familyChatMessages.length ? (
-                <div className="d-flex flex-column gap-2">
-                  {familyChatMessages.map((message) => {
-                    const isMine = message.senderUserId === user?.id;
-                    const isSystem = message.messageType === 'system';
-
-                    return (
-                      <div
-                        key={message.id}
-                        className={`p-2 rounded ${
-                          isSystem
-                            ? 'bg-light text-muted'
-                            : isMine
-                              ? 'bg-success-subtle align-self-end'
-                              : 'bg-white border'
-                        }`}
-                        style={{ maxWidth: isSystem ? '100%' : '85%' }}
-                      >
-                        {!isSystem && (
-                          <div className="small fw-semibold">
-                            {isMine ? 'Io' : message.sender?.name || 'Utente'}
-                          </div>
-                        )}
-                        <div>{message.content}</div>
-                        <div className="small text-muted mt-1">
-                          {format(new Date(message.createdAt), 'd MMM yyyy HH:mm', { locale: it })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-muted">Nessun messaggio nella chat famiglia.</div>
-              )}
-            </Card.Body>
-          </Card>
-
+      <Row className="g-4 mb-4">
+        <Col xs={12}>
           <Card className="settings-card">
-            <Card.Header>Nuovo Messaggio Famiglia</Card.Header>
+            <Card.Header>Chat Famiglia</Card.Header>
             <Card.Body>
+              <div style={{ maxHeight: '52vh', overflowY: 'auto' }} className="mb-3">
+                {isLoading ? (
+                  <div className="text-center py-4">
+                    <Spinner animation="border" variant="success" />
+                  </div>
+                ) : familyChatMessages.length ? (
+                  <div className="d-flex flex-column gap-2">
+                    {familyChatMessages.map((message) => {
+                      const isMine = message.senderUserId === user?.id;
+                      const isSystem = message.messageType === 'system';
+
+                      return (
+                        <div
+                          key={message.id}
+                          className={`p-2 rounded ${
+                            isSystem
+                              ? 'bg-light text-muted'
+                              : isMine
+                                ? 'bg-success-subtle align-self-end'
+                                : 'bg-white border'
+                          }`}
+                          style={{ maxWidth: isSystem ? '100%' : '85%' }}
+                        >
+                          {!isSystem && !isMine && (
+                            <div className="small fw-semibold">{message.sender?.name || 'Utente'}</div>
+                          )}
+                          <div>{message.content}</div>
+                          <div className="small text-muted mt-1">
+                            {format(new Date(message.createdAt), 'd MMM yyyy HH:mm', { locale: it })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-muted">Nessun messaggio nella chat famiglia.</div>
+                )}
+              </div>
+
               <Form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  const trimmed = familyContent.trim();
-                  if (!trimmed) return;
-                  sendFamilyMessageMutation.mutate(trimmed);
+                  submitFamilyMessage();
                 }}
               >
                 <Form.Group>
@@ -198,6 +284,12 @@ export default function ChatPage() {
                     onChange={(e) => setFamilyContent(e.target.value)}
                     placeholder="Scrivi un messaggio alla famiglia..."
                     maxLength={2000}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.altKey) {
+                        e.preventDefault();
+                        submitFamilyMessage();
+                      }
+                    }}
                   />
                 </Form.Group>
                 <div className="d-flex justify-content-end mt-3">
@@ -206,31 +298,29 @@ export default function ChatPage() {
                     variant="primary"
                     disabled={sendFamilyMessageMutation.isPending || !familyContent.trim()}
                   >
-                    {sendFamilyMessageMutation.isPending ? (
-                      <Spinner size="sm" animation="border" />
-                    ) : (
-                      'Invia'
-                    )}
+                    {sendFamilyMessageMutation.isPending ? <Spinner size="sm" animation="border" /> : 'Invia'}
                   </Button>
                 </div>
               </Form>
             </Card.Body>
           </Card>
         </Col>
+      </Row>
 
-        <Col lg={6}>
-          <Card className="settings-card mb-3">
-            <Card.Header>Chat Privata</Card.Header>
+      <Row className="g-4">
+        <Col xs={12} md={6} xl={4}>
+          <Card className="settings-card h-100">
+            <Card.Header>Nuova Chat Privata</Card.Header>
             <Card.Body>
               <Form.Group className="mb-3">
-                <Form.Label>Conversazione con</Form.Label>
+                <Form.Label>Seleziona membro</Form.Label>
                 <Form.Select
-                  value={selectedPrivateMemberId}
-                  onChange={(e) => setSelectedPrivateMemberId(e.target.value)}
-                  disabled={!otherMembers.length}
+                  value={newPrivateMemberId}
+                  onChange={(e) => setNewPrivateMemberId(e.target.value)}
+                  disabled={!privateAvailableMembers.length}
                 >
-                  {!otherMembers.length ? <option value="">Nessun membro disponibile</option> : null}
-                  {otherMembers.map((member) => (
+                  {!privateAvailableMembers.length ? <option value="">Nessun membro disponibile</option> : null}
+                  {privateAvailableMembers.map((member) => (
                     <option key={member.id} value={member.id}>
                       {member.name} ({member.role === 'admin' ? 'Amministratore' : 'Membro'})
                     </option>
@@ -238,91 +328,108 @@ export default function ChatPage() {
                 </Form.Select>
               </Form.Group>
 
-              <div style={{ maxHeight: '40vh', overflowY: 'auto' }}>
-                {isLoading ? (
-                  <div className="text-center py-4">
-                    <Spinner animation="border" variant="success" />
-                  </div>
-                ) : !selectedPrivateMember ? (
-                  <div className="text-muted">Seleziona un membro per iniziare una chat privata.</div>
-                ) : privateThreadMessages.length ? (
-                  <div className="d-flex flex-column gap-2">
-                    {privateThreadMessages.map((message) => {
-                      const isMine = message.senderUserId === user?.id;
-                      return (
-                        <div
-                          key={message.id}
-                          className={`p-2 rounded ${isMine ? 'bg-success-subtle align-self-end' : 'bg-white border'}`}
-                          style={{ maxWidth: '85%' }}
-                        >
-                          <div className="small fw-semibold">
-                            {isMine ? 'Io' : message.sender?.name || 'Utente'}
-                          </div>
-                          <div>{message.content}</div>
-                          <div className="small text-muted mt-1">
-                            {format(new Date(message.createdAt), 'd MMM yyyy HH:mm', { locale: it })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-muted">Nessun messaggio privato con questo membro.</div>
-                )}
-              </div>
-            </Card.Body>
-          </Card>
-
-          <Card className="settings-card">
-            <Card.Header>Nuovo Messaggio Privato</Card.Header>
-            <Card.Body>
-              <Form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const trimmed = privateContent.trim();
-                  if (!trimmed || !selectedPrivateMemberId) return;
-                  sendPrivateMessageMutation.mutate({
-                    text: trimmed,
-                    recipientId: selectedPrivateMemberId,
-                  });
-                }}
+              <Button
+                variant="outline-primary"
+                onClick={openPrivateThread}
+                disabled={!newPrivateMemberId}
               >
-                <Form.Group>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={privateContent}
-                    onChange={(e) => setPrivateContent(e.target.value)}
-                    placeholder={
-                      selectedPrivateMember
-                        ? `Scrivi un messaggio privato a ${selectedPrivateMember.name}...`
-                        : 'Seleziona prima un membro...'
-                    }
-                    maxLength={2000}
-                    disabled={!selectedPrivateMember}
-                  />
-                </Form.Group>
-                <div className="d-flex justify-content-end mt-3">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    disabled={
-                      sendPrivateMessageMutation.isPending ||
-                      !privateContent.trim() ||
-                      !selectedPrivateMember
-                    }
-                  >
-                    {sendPrivateMessageMutation.isPending ? (
-                      <Spinner size="sm" animation="border" />
-                    ) : (
-                      'Invia'
-                    )}
-                  </Button>
-                </div>
-              </Form>
+                Apri box chat
+              </Button>
             </Card.Body>
           </Card>
         </Col>
+
+        {privateThreadMembers.map((member) => {
+          const threadMessages = privateThreadMessagesByMemberId[member.id] || [];
+          const draft = privateDraftByMemberId[member.id] || '';
+
+          return (
+            <Col key={member.id} xs={12} md={6} xl={4}>
+              <Card className="settings-card h-100">
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <span>{member.name}</span>
+                  <Badge bg={member.role === 'admin' ? 'success' : 'secondary'}>
+                    {member.role === 'admin' ? 'Amministratore' : 'Membro'}
+                  </Badge>
+                </Card.Header>
+                <Card.Body>
+                  <div style={{ maxHeight: '35vh', overflowY: 'auto' }} className="mb-3">
+                    {isLoading ? (
+                      <div className="text-center py-4">
+                        <Spinner animation="border" variant="success" />
+                      </div>
+                    ) : threadMessages.length ? (
+                      <div className="d-flex flex-column gap-2">
+                        {threadMessages.map((message) => {
+                          const isMine = message.senderUserId === user?.id;
+                          return (
+                            <div
+                              key={message.id}
+                              className={`p-2 rounded ${isMine ? 'bg-success-subtle align-self-end' : 'bg-white border'}`}
+                              style={{ maxWidth: '85%' }}
+                            >
+                              {!isMine && (
+                                <div className="small fw-semibold">{message.sender?.name || 'Utente'}</div>
+                              )}
+                              <div>{message.content}</div>
+                              <div className="small text-muted mt-1">
+                                {format(new Date(message.createdAt), 'd MMM yyyy HH:mm', { locale: it })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-muted">Nessun messaggio privato con questo membro.</div>
+                    )}
+                  </div>
+
+                  <Form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      submitPrivateMessage(member.id);
+                    }}
+                  >
+                    <Form.Group>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={draft}
+                        onChange={(e) =>
+                          setPrivateDraftByMemberId((prev) => ({
+                            ...prev,
+                            [member.id]: e.target.value,
+                          }))
+                        }
+                        placeholder={`Scrivi un messaggio privato a ${member.name}...`}
+                        maxLength={2000}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.altKey) {
+                            e.preventDefault();
+                            submitPrivateMessage(member.id);
+                          }
+                        }}
+                      />
+                    </Form.Group>
+                    <div className="d-flex justify-content-end mt-3">
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        disabled={sendPrivateMessageMutation.isPending || !draft.trim()}
+                      >
+                        {sendPrivateMessageMutation.isPending ? (
+                          <Spinner size="sm" animation="border" />
+                        ) : (
+                          'Invia'
+                        )}
+                      </Button>
+                    </div>
+                  </Form>
+                </Card.Body>
+              </Card>
+            </Col>
+          );
+        })}
       </Row>
     </DashboardLayout>
   );

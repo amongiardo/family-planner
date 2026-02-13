@@ -171,3 +171,4 @@ Changelog
 - 2026-02-13: Notifiche chat migliorate: messaggio notifica con preview contenuto (`Nome: testo...`) invece di testo generico.
 - 2026-02-13: UX campanella: dropdown notifiche con sfondo blu, item unread evidenziati e pulsante `Segna tutte lette` stilizzato.
 - 2026-02-13: Chat UI separata: flussi distinti "Chat Famiglia" e "Chat Privata" (thread per membro) con box membri spostato in alto.
+- 2026-02-13: Chat privata a box multipli: creazione thread dinamica (anche su messaggio ricevuto), select filtrata senza duplicati, layout chat famiglia full-width + griglia private max 3 colonne desktop (stack su mobile).

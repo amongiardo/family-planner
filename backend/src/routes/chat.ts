@@ -11,10 +11,29 @@ router.get('/messages', isAuthenticated, async (req, res, next) => {
     const userId = req.user!.id;
     const limitRaw = Number(req.query.limit);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 100;
+    const membership = await prisma.familyMember.findUnique({
+      where: {
+        familyId_userId: {
+          familyId,
+          userId,
+        },
+      },
+      select: {
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    if (!membership || membership.status !== 'active') {
+      return res.status(403).json({ error: 'Not an active member of this family' });
+    }
 
     const messages = await prisma.chatMessage.findMany({
       where: {
         familyId,
+        createdAt: {
+          gte: membership.createdAt,
+        },
         OR: [
           { recipientUserId: null },
           { senderUserId: userId },
