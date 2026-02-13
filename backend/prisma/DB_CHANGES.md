@@ -32,6 +32,18 @@ Questo file traccia in modo sintetico le modifiche schema/database applicate tra
 - Effetto:
   - supporto selezione città disambiguata (mondo) e meteo affidabile su coordinate/timezone senza ambiguità.
 
+### `20260213220000_family_soft_delete_and_creator`
+- Tabella: `families`
+- Aggiunte colonne:
+  - `created_by_user_id` (`TEXT`, FK -> `users.id`, `ON DELETE SET NULL`)
+  - `deleted_at` (`TIMESTAMP`, nullable)
+  - `deleted_by_user_id` (`TEXT`, FK -> `users.id`, `ON DELETE SET NULL`)
+- Backfill:
+  - `created_by_user_id` popolato dalla membership admin piu vecchia (fallback: membership piu vecchia).
+- Effetto:
+  - cancellazione famiglia in soft-delete (storico preservato).
+  - tracciamento creatore/eliminatore per storico famiglie ex-membro.
+
 ## Note operative
 - Per allineare DB locale a queste modifiche usare:
   - `./scripts/update_local.sh`

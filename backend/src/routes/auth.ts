@@ -21,13 +21,23 @@ async function resolveActiveFamilyId(userId: string, current?: string) {
           userId,
         },
       },
-      select: { familyId: true, status: true },
+      select: {
+        familyId: true,
+        status: true,
+        family: {
+          select: {
+            deletedAt: true,
+          },
+        },
+      },
     });
-    if (currentMembership?.status === 'active') return currentMembership.familyId;
+    if (currentMembership?.status === 'active' && !currentMembership.family.deletedAt) {
+      return currentMembership.familyId;
+    }
   }
 
   const firstMembership = await prisma.familyMember.findFirst({
-    where: { userId, status: 'active' },
+    where: { userId, status: 'active', family: { deletedAt: null } },
     orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
     select: { familyId: true },
   });
@@ -41,7 +51,7 @@ async function buildAuthPayload(userId: string, activeFamilyId?: string) {
   if (!user) return { user: null };
 
   const memberships = await prisma.familyMember.findMany({
-    where: { userId, status: 'active' },
+    where: { userId, status: 'active', family: { deletedAt: null } },
     include: {
       family: {
         select: {
@@ -80,8 +90,18 @@ async function buildAuthPayload(userId: string, activeFamilyId?: string) {
 async function attachInviteMembershipForUser(userId: string, email: string, inviteToken?: string) {
   if (!inviteToken) return undefined;
 
-  const invite = await prisma.familyInvite.findUnique({ where: { token: inviteToken } });
+  const invite = await prisma.familyInvite.findUnique({
+    where: { token: inviteToken },
+    include: {
+      family: {
+        select: {
+          deletedAt: true,
+        },
+      },
+    },
+  });
   if (!invite || invite.usedAt || invite.expiresAt <= new Date()) return undefined;
+  if (invite.family.deletedAt) return undefined;
   if (invite.email.toLowerCase() !== email.toLowerCase()) return undefined;
 
   await prisma.$transaction(async (tx) => {
@@ -197,11 +217,21 @@ router.post('/local/register', async (req, res, next) => {
 
     let inviteFamilyId: string | undefined;
     if (inviteToken) {
-      const invite = await prisma.familyInvite.findUnique({ where: { token: inviteToken } });
+      const invite = await prisma.familyInvite.findUnique({
+        where: { token: inviteToken },
+        include: {
+          family: {
+            select: {
+              deletedAt: true,
+            },
+          },
+        },
+      });
       if (
         !invite ||
         invite.usedAt ||
         invite.expiresAt <= new Date() ||
+        invite.family.deletedAt ||
         invite.email.toLowerCase() !== normalizedEmail
       ) {
         return res.status(400).json({ error: 'Invite not valid for this email' });
@@ -261,6 +291,7 @@ router.post('/local/register', async (req, res, next) => {
       const family = await prisma.family.create({
         data: {
           name: familyName.trim(),
+          createdByUserId: user.id,
         },
       });
 

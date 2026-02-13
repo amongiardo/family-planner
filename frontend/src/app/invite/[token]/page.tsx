@@ -162,7 +162,7 @@ export default function InvitePage() {
                   className="btn-danger-soft"
                   onClick={async () => {
                     await refresh();
-                    router.push('/dashboard');
+                    router.push(user?.activeFamilyId ? '/dashboard' : '/impostazioni');
                   }}
                 >
                   Annulla

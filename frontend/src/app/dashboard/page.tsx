@@ -1,23 +1,28 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Row, Col, Card, Button, Badge, ListGroup, Spinner, Form, Modal } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, differenceInCalendarDays } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { FaPlus, FaLightbulb } from 'react-icons/fa';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { mealsApi, suggestionsApi, dishesApi, familyApi, weatherApi, shoppingApi } from '@/lib/api';
 import { DishCategory, MealPlan, MealType } from '@/types';
 import StatusModal from '@/components/StatusModal';
 import ConfirmModal from '@/components/ConfirmModal';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const today = new Date();
   const { data: family } = useQuery({
     queryKey: ['family'],
     queryFn: familyApi.get,
+    enabled: Boolean(user?.activeFamilyId),
   });
   const city = family?.cityDisplayName || family?.city || 'Roma';
   const { data: weather } = useQuery({
@@ -31,6 +36,7 @@ export default function DashboardPage() {
       family?.cityTimezone,
     ],
     queryFn: () => weatherApi.get(),
+    enabled: Boolean(user?.activeFamilyId),
   });
   const initialWeekStart = startOfWeek(today, { weekStartsOn: 1 });
   const initialDayIndex = Math.min(
@@ -56,6 +62,7 @@ export default function DashboardPage() {
   const { data: meals, isLoading: mealsLoading } = useQuery({
     queryKey: ['meals', 'range', rangeStart, rangeEnd],
     queryFn: () => mealsApi.getRange(rangeStart, rangeEnd),
+    enabled: Boolean(user?.activeFamilyId),
   });
 
   const suggestionDate = format(today, 'yyyy-MM-dd');
@@ -64,28 +71,34 @@ export default function DashboardPage() {
       primo: useQuery({
         queryKey: ['suggestions', suggestionDate, 'pranzo', 'primo'],
         queryFn: () => suggestionsApi.get(suggestionDate, 'pranzo', 'primo'),
+        enabled: Boolean(user?.activeFamilyId),
       }),
       secondo: useQuery({
         queryKey: ['suggestions', suggestionDate, 'pranzo', 'secondo'],
         queryFn: () => suggestionsApi.get(suggestionDate, 'pranzo', 'secondo'),
+        enabled: Boolean(user?.activeFamilyId),
       }),
       contorno: useQuery({
         queryKey: ['suggestions', suggestionDate, 'pranzo', 'contorno'],
         queryFn: () => suggestionsApi.get(suggestionDate, 'pranzo', 'contorno'),
+        enabled: Boolean(user?.activeFamilyId),
       }),
     },
     cena: {
       primo: useQuery({
         queryKey: ['suggestions', suggestionDate, 'cena', 'primo'],
         queryFn: () => suggestionsApi.get(suggestionDate, 'cena', 'primo'),
+        enabled: Boolean(user?.activeFamilyId),
       }),
       secondo: useQuery({
         queryKey: ['suggestions', suggestionDate, 'cena', 'secondo'],
         queryFn: () => suggestionsApi.get(suggestionDate, 'cena', 'secondo'),
+        enabled: Boolean(user?.activeFamilyId),
       }),
       contorno: useQuery({
         queryKey: ['suggestions', suggestionDate, 'cena', 'contorno'],
         queryFn: () => suggestionsApi.get(suggestionDate, 'cena', 'contorno'),
+        enabled: Boolean(user?.activeFamilyId),
       }),
     },
   };
@@ -140,7 +153,14 @@ export default function DashboardPage() {
   const { data: dishes } = useQuery({
     queryKey: ['dishes'],
     queryFn: () => dishesApi.list(),
+    enabled: Boolean(user?.activeFamilyId),
   });
+
+  useEffect(() => {
+    if (!authLoading && user && !user.activeFamilyId) {
+      router.replace('/impostazioni');
+    }
+  }, [authLoading, user, router]);
 
   const dishesByCategory = useMemo(() => {
     return {
@@ -286,6 +306,16 @@ export default function DashboardPage() {
     }
     touchStart.current = null;
   };
+
+  if (authLoading || (user && !user.activeFamilyId)) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-5">
+          <Spinner animation="border" variant="success" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

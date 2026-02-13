@@ -50,5 +50,5 @@ Quando si lavora con più sessioni Codex in parallelo:
 - Segui le regole operative in `SKILL.md` (in particolare: chiedere sempre se fare `cm` a fine fix/feature).
 - Mantieni un versioning SemVer in `VERSION` (partenza `0.0.0`) e aggiornalo quando fai un rilascio logico o quando richiesto.
 
-Ultimo aggiornamento: 2026-02-13 (autocomplete città meteo globale con metadati geolocalizzazione/timezone, fix submit involontario impostazioni)
+Ultimo aggiornamento: 2026-02-13 (soft-delete famiglie + storico ex-famiglie con creator/deleter, accesso senza famiglia attiva e redirect anti-pagina-bianca)
 </INSTRUCTIONS>

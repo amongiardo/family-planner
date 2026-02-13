@@ -26,7 +26,7 @@ function LoginPageContent() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard');
+      router.push(user.activeFamilyId ? '/dashboard' : '/impostazioni');
     }
   }, [user, loading, router]);
 
@@ -35,26 +35,34 @@ function LoginPageContent() {
     setSubmitting(true);
     setLocalError(null);
     try {
+      let resultUserActiveFamilyId: string | undefined;
       if (mode === 'login') {
-        await authApi.loginLocal({ email: form.email, password: form.password });
+        const payload = await authApi.loginLocal({ email: form.email, password: form.password });
+        resultUserActiveFamilyId = payload.user?.activeFamilyId;
         if (inviteToken) {
           await familyApi.acceptInvite(inviteToken);
+          resultUserActiveFamilyId = undefined;
         }
       } else {
         if (form.password !== form.passwordConfirm) {
           setLocalError('Le password non coincidono');
           return;
         }
-        await authApi.registerLocal({
+        const payload = await authApi.registerLocal({
           email: form.email,
           password: form.password,
           name: form.name,
           familyName: inviteToken ? undefined : form.familyName,
           inviteToken,
         });
+        resultUserActiveFamilyId = payload.user?.activeFamilyId;
       }
       await refresh();
-      router.push('/dashboard');
+      if (inviteToken) {
+        router.push('/dashboard');
+      } else {
+        router.push(resultUserActiveFamilyId ? '/dashboard' : '/impostazioni');
+      }
     } catch (err: any) {
       setLocalError(err?.message || 'Autenticazione fallita');
     } finally {

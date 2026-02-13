@@ -13,6 +13,7 @@ export default function Navbar() {
   const { user, logout, refresh } = useAuth();
 
   const activeFamily = user?.families?.find((family) => family.id === user.activeFamilyId);
+  const homeHref = user?.activeFamilyId ? '/dashboard' : '/impostazioni';
 
   const handleSwitchFamily = async (familyId: string) => {
     if (!user || familyId === user.activeFamilyId) return;
@@ -28,7 +29,7 @@ export default function Navbar() {
   return (
     <BsNavbar expand="lg" className="app-navbar shadow-sm">
       <Container fluid>
-        <Link href="/dashboard" passHref legacyBehavior>
+        <Link href={homeHref} passHref legacyBehavior>
           <BsNavbar.Brand className="d-flex align-items-center gap-2">
             <span style={{ fontSize: 18 }}>🍽️</span>
             Family Planner

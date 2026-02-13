@@ -17,6 +17,9 @@ model Family {
   cityLatitude    Float?   @map("city_latitude")
   cityLongitude   Float?   @map("city_longitude")
   authCode        String?  @map("auth_code") @db.VarChar(5)
+  createdByUserId String?  @map("created_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+  deletedByUserId String?  @map("deleted_by_user_id")
   createdAt       DateTime @default(now()) @map("created_at")
 
   memberships   FamilyMember[]
@@ -25,6 +28,8 @@ model Family {
   mealOuts      MealOut[]
   shoppingLists ShoppingList[]
   invites       FamilyInvite[]
+  createdByUser User?      @relation("family_created_by", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  deletedByUser User?      @relation("family_deleted_by", fields: [deletedByUserId], references: [id], onDelete: SetNull)
 
   @@map("families")
 }
@@ -51,6 +56,8 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
 
   memberships FamilyMember[]
+  createdFamilies Family[] @relation("family_created_by")
+  deletedFamilies Family[] @relation("family_deleted_by")
 
   @@unique([oauthProvider, oauthId])
   @@map("users")

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { addDays } from 'date-fns';
 import prisma from '../prisma';
-import { isAuthenticated, getFamilyId, getFamilyRole } from '../middleware/auth';
+import { isAuthenticated, isLoggedIn, getFamilyId, getFamilyRole } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles';
 import { ensureUserAuthCode, readProvidedCode, requireFamilyAuthCode } from '../middleware/familyAuthCode';
 import { generateFamilyAuthCode, isValidFamilyAuthCode } from '../utils/familyAuthCode';
@@ -46,6 +46,8 @@ function toFamilyResponse(family: any, role: FamilyRole, authCode?: string) {
   };
 }
 
+const ACTIVE_FAMILY_FILTER = { deletedAt: null };
+
 function normalizeCitySelection(input: unknown): CitySelectionInput | null {
   if (!input || typeof input !== 'object') return null;
 
@@ -76,6 +78,7 @@ async function ensureInviteValid(token: string): Promise<InviteValidationResult>
         select: {
           id: true,
           name: true,
+          deletedAt: true,
         },
       },
     },
@@ -84,6 +87,7 @@ async function ensureInviteValid(token: string): Promise<InviteValidationResult>
   if (!invite) return { ok: false, error: 'Invite not found', status: 404 };
   if (invite.usedAt) return { ok: false, error: 'Invite already used', status: 400 };
   if (invite.expiresAt < new Date()) return { ok: false, error: 'Invite expired', status: 400 };
+  if (invite.family.deletedAt) return { ok: false, error: 'Family no longer available', status: 410 };
 
   return { ok: true, invite };
 }
@@ -95,8 +99,8 @@ router.get('/', isAuthenticated, async (req, res, next) => {
     const role = getFamilyRole(req);
     const userAuthCode = await ensureUserAuthCode(req.user!.id);
 
-    const family = await prisma.family.findUnique({
-      where: { id: familyId },
+    const family = await prisma.family.findFirst({
+      where: { id: familyId, ...ACTIVE_FAMILY_FILTER },
       include: {
         memberships: {
           where: { status: 'active' },
@@ -126,10 +130,10 @@ router.get('/', isAuthenticated, async (req, res, next) => {
 });
 
 // List active/former families for current user
-router.get('/mine', isAuthenticated, async (req, res, next) => {
+router.get('/mine', isLoggedIn, async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const activeFamilyId = getFamilyId(req);
+    const activeFamilyId = req.activeFamilyId || null;
 
     const memberships = await prisma.familyMember.findMany({
       where: { userId },
@@ -140,6 +144,19 @@ router.get('/mine', isAuthenticated, async (req, res, next) => {
             name: true,
             city: true,
             createdAt: true,
+            deletedAt: true,
+            createdByUser: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+            deletedByUser: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -157,7 +174,7 @@ router.get('/mine', isAuthenticated, async (req, res, next) => {
     const countMap = new Map(activeCounts.map((c) => [c.familyId, c._count._all]));
 
     const activeFamilies = memberships
-      .filter((m) => m.status === 'active')
+      .filter((m) => m.status === 'active' && !m.family.deletedAt)
       .map((m) => ({
         id: m.family.id,
         name: m.family.name,
@@ -169,16 +186,22 @@ router.get('/mine', isAuthenticated, async (req, res, next) => {
       }));
 
     const formerFamilies = memberships
-      .filter((m) => m.status === 'left')
+      .filter((m) => m.status === 'left' || Boolean(m.family.deletedAt))
       .map((m) => ({
         id: m.family.id,
         name: m.family.name,
         city: m.family.city,
         createdAt: m.family.createdAt,
         role: m.role,
-        membersCount: countMap.get(m.family.id) || 0,
+        membersCount: !m.family.deletedAt ? countMap.get(m.family.id) || 0 : 0,
         status: 'left' as const,
         leftAt: m.leftAt,
+        familyDeletedAt: m.family.deletedAt,
+        creatorName: m.family.createdByUser?.name || null,
+        creatorEmail: m.family.createdByUser?.email || null,
+        deletedByName: m.family.deletedByUser?.name || null,
+        deletedByEmail: m.family.deletedByUser?.email || null,
+        canRejoin: !m.family.deletedAt,
       }));
 
     res.json({ activeFamilyId, families: activeFamilies, formerFamilies });
@@ -188,7 +211,7 @@ router.get('/mine', isAuthenticated, async (req, res, next) => {
 });
 
 // Switch active family in session
-router.post('/switch', isAuthenticated, async (req, res, next) => {
+router.post('/switch', isLoggedIn, async (req, res, next) => {
   try {
     const { familyId } = req.body ?? {};
     if (!familyId || typeof familyId !== 'string') {
@@ -202,10 +225,18 @@ router.post('/switch', isAuthenticated, async (req, res, next) => {
           userId: req.user!.id,
         },
       },
-      select: { familyId: true, status: true },
+      select: {
+        familyId: true,
+        status: true,
+        family: {
+          select: {
+            deletedAt: true,
+          },
+        },
+      },
     });
 
-    if (!membership || membership.status !== 'active') {
+    if (!membership || membership.status !== 'active' || membership.family.deletedAt) {
       return res.status(403).json({ error: 'Not an active member of selected family' });
     }
 
@@ -217,7 +248,7 @@ router.post('/switch', isAuthenticated, async (req, res, next) => {
 });
 
 // Create a new family and join as admin
-router.post('/create', isAuthenticated, async (req, res, next) => {
+router.post('/create', isLoggedIn, async (req, res, next) => {
   try {
     const { name, city, citySelection, switchToNewFamily } = req.body ?? {};
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -238,6 +269,7 @@ router.post('/create', isAuthenticated, async (req, res, next) => {
         cityTimezone: normalizedCitySelection?.timezone,
         cityLatitude: normalizedCitySelection?.latitude,
         cityLongitude: normalizedCitySelection?.longitude,
+        createdByUserId: req.user!.id,
       },
     });
 
@@ -276,18 +308,29 @@ router.post('/create', isAuthenticated, async (req, res, next) => {
 });
 
 // Leave family (only non-admin)
-router.post('/:familyId/leave', isAuthenticated, async (req, res, next) => {
+router.post('/:familyId/leave', isLoggedIn, async (req, res, next) => {
   try {
     const { familyId } = req.params;
     const userId = req.user!.id;
 
     const membership = await prisma.familyMember.findUnique({
       where: { familyId_userId: { familyId, userId } },
-      select: { role: true, status: true },
+      select: {
+        role: true,
+        status: true,
+        family: {
+          select: {
+            deletedAt: true,
+          },
+        },
+      },
     });
 
     if (!membership || membership.status !== 'active') {
       return res.status(404).json({ error: 'Active membership not found' });
+    }
+    if (membership.family.deletedAt) {
+      return res.status(400).json({ error: 'La famiglia risulta gia cancellata' });
     }
 
     if (membership.role === 'admin') {
@@ -301,7 +344,7 @@ router.post('/:familyId/leave', isAuthenticated, async (req, res, next) => {
 
     if (req.session.activeFamilyId === familyId) {
       const fallback = await prisma.familyMember.findFirst({
-        where: { userId, status: 'active' },
+        where: { userId, status: 'active', family: { deletedAt: null } },
         orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
         select: { familyId: true },
       });
@@ -315,18 +358,28 @@ router.post('/:familyId/leave', isAuthenticated, async (req, res, next) => {
 });
 
 // Rejoin a former family
-router.post('/:familyId/rejoin', isAuthenticated, async (req, res, next) => {
+router.post('/:familyId/rejoin', isLoggedIn, async (req, res, next) => {
   try {
     const { familyId } = req.params;
     const userId = req.user!.id;
 
     const membership = await prisma.familyMember.findUnique({
       where: { familyId_userId: { familyId, userId } },
-      select: { status: true },
+      select: {
+        status: true,
+        family: {
+          select: {
+            deletedAt: true,
+          },
+        },
+      },
     });
 
     if (!membership || membership.status !== 'left') {
       return res.status(404).json({ error: 'Former membership not found' });
+    }
+    if (membership.family.deletedAt) {
+      return res.status(400).json({ error: 'La famiglia e stata eliminata e non e possibile rientrare' });
     }
 
     await prisma.familyMember.update({
@@ -342,7 +395,7 @@ router.post('/:familyId/rejoin', isAuthenticated, async (req, res, next) => {
 });
 
 // Permanently remove a former family membership
-router.delete('/:familyId/former-membership', isAuthenticated, async (req, res, next) => {
+router.delete('/:familyId/former-membership', isLoggedIn, async (req, res, next) => {
   try {
     const { familyId } = req.params;
     const userId = req.user!.id;
@@ -367,20 +420,31 @@ router.delete('/:familyId/former-membership', isAuthenticated, async (req, res, 
 });
 
 // Delete entire family (admin only, requires auth code)
-router.delete('/:familyId', isAuthenticated, async (req, res, next) => {
+router.delete('/:familyId', isLoggedIn, async (req, res, next) => {
   try {
     const { familyId } = req.params;
     const userId = req.user!.id;
-    const { targetFamilyId } = req.body as { targetFamilyId?: string };
+    const { targetFamilyId } = (req.body ?? {}) as { targetFamilyId?: string };
     const isDeletingActiveFamily = req.session.activeFamilyId === familyId;
 
     const membership = await prisma.familyMember.findUnique({
       where: { familyId_userId: { familyId, userId } },
-      select: { role: true, status: true },
+      select: {
+        role: true,
+        status: true,
+        family: {
+          select: {
+            deletedAt: true,
+          },
+        },
+      },
     });
 
     if (!membership || membership.status !== 'active') {
       return res.status(403).json({ error: 'Not an active member of this family' });
+    }
+    if (membership.family.deletedAt) {
+      return res.status(404).json({ error: 'Family not found' });
     }
 
     if (membership.role !== 'admin') {
@@ -389,7 +453,7 @@ router.delete('/:familyId', isAuthenticated, async (req, res, next) => {
 
     // Check if this is the only family
     const activeFamiliesCount = await prisma.familyMember.count({
-      where: { userId, status: 'active' },
+      where: { userId, status: 'active', family: ACTIVE_FAMILY_FILTER },
     });
     if (activeFamiliesCount <= 1) {
       return res.status(400).json({ error: 'Non puoi eliminare l\'unica famiglia di cui fai parte' });
@@ -406,10 +470,17 @@ router.delete('/:familyId', isAuthenticated, async (req, res, next) => {
 
       const targetMembership = await prisma.familyMember.findUnique({
         where: { familyId_userId: { familyId: targetFamilyId, userId } },
-        select: { status: true },
+        select: {
+          status: true,
+          family: {
+            select: {
+              deletedAt: true,
+            },
+          },
+        },
       });
 
-      if (targetMembership?.status !== 'active') {
+      if (targetMembership?.status !== 'active' || targetMembership.family.deletedAt) {
         return res.status(400).json({ error: 'La famiglia di destinazione non è valida' });
       }
     }
@@ -422,9 +493,9 @@ router.delete('/:familyId', isAuthenticated, async (req, res, next) => {
       return res.status(400).json({ error: 'Codice di autenticazione non valido' });
     }
 
-    const familyExists = await prisma.family.findUnique({
-      where: { id: familyId },
-      select: { id: true },
+    const familyExists = await prisma.family.findFirst({
+      where: { id: familyId, deletedAt: null },
+      select: { id: true, deletedAt: true },
     });
     if (!familyExists) {
       return res.status(404).json({ error: 'Family not found' });
@@ -435,10 +506,31 @@ router.delete('/:familyId', isAuthenticated, async (req, res, next) => {
       return res.status(403).json({ error: 'Codice di autenticazione errato' });
     }
 
-    await prisma.family.delete({ where: { id: familyId } });
+    await prisma.$transaction(async (tx) => {
+      await tx.family.update({
+        where: { id: familyId },
+        data: {
+          deletedAt: new Date(),
+          deletedByUserId: userId,
+        },
+      });
+
+      await tx.familyMember.updateMany({
+        where: {
+          familyId,
+          status: 'active',
+        },
+        data: {
+          status: 'left',
+          leftAt: new Date(),
+        },
+      });
+    });
 
     if (isDeletingActiveFamily && targetFamilyId) {
       req.session.activeFamilyId = targetFamilyId;
+    } else if (req.session.activeFamilyId === familyId) {
+      req.session.activeFamilyId = undefined;
     }
 
     res.json({ success: true, activeFamilyId: req.session.activeFamilyId || null });
@@ -494,7 +586,7 @@ router.put('/', isAuthenticated, requireAdmin, async (req, res, next) => {
 });
 
 // Regenerate user auth code used for destructive actions
-router.post('/auth-code/regenerate', isAuthenticated, async (req, res, next) => {
+router.post('/auth-code/regenerate', isLoggedIn, async (req, res, next) => {
   try {
     const user = await prisma.user.update({
       where: { id: req.user!.id },
@@ -614,7 +706,7 @@ router.delete('/invites/:id', isAuthenticated, requireAdmin, requireFamilyAuthCo
 });
 
 // Accept invite for an already authenticated user
-router.post('/invite/:token/accept', isAuthenticated, async (req, res, next) => {
+router.post('/invite/:token/accept', isLoggedIn, async (req, res, next) => {
   try {
     const user = req.user!;
     const { token } = req.params;

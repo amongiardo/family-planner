@@ -1,4 +1,4 @@
-import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, FamilyInvite, CitySearchResult } from '@/types';
+import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, FamilyInvite, CitySearchResult, FormerFamilyMembership } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -77,16 +77,7 @@ export const familyApi = {
         membersCount: number;
         status: 'active';
       }[];
-      formerFamilies: {
-        id: string;
-        name: string;
-        city?: string;
-        role: 'admin' | 'member';
-        createdAt: string;
-        membersCount: number;
-        status: 'left';
-        leftAt?: string | null;
-      }[];
+      formerFamilies: FormerFamilyMembership[];
     }>('/api/family/mine'),
   switchActive: (familyId: string) =>
     fetchApi<{ success: boolean; activeFamilyId: string }>('/api/family/switch', {
@@ -108,7 +99,7 @@ export const familyApi = {
   }) =>
     fetchApi<{
       family: { id: string; name: string; city?: string; createdAt: string; role: 'admin' | 'member' };
-      activeFamilyId: string;
+      activeFamilyId: string | null;
     }>('/api/family/create', {
       method: 'POST',
       body: JSON.stringify(data),

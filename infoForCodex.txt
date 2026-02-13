@@ -148,3 +148,10 @@ Changelog
 - 2026-02-13: Backend weather: nuovo endpoint `GET /api/weather/cities` per ricerca città on-the-fly (Open-Meteo geocoding) e forecast basato su coordinate salvate quando presenti.
 - 2026-02-13: Impostazioni: autocomplete città globale su "Modifica Famiglia" e "Aggiungi Famiglia", con suggerimenti cliccabili disambiguati.
 - 2026-02-13: UX form città fix: rimossi radio Mondo/Italia e bloccato submit involontario della form su click suggerimenti (`type=button`), evitando reload GET su `/impostazioni`.
+- 2026-02-13: Refactor robustezza multi-famiglia post-eliminazione: introdotto soft-delete famiglia (`families.deleted_at`) con tracciamento creatore/eliminatore (`created_by_user_id`, `deleted_by_user_id`) e storico membership preservato.
+- 2026-02-13: Middleware auth separati: `isLoggedIn` (solo login) e `isAuthenticated` (login + famiglia attiva) per permettere accesso a impostazioni/lista famiglie anche senza famiglia attiva.
+- 2026-02-13: API famiglia rafforzate: `/api/family/mine` ora include metadati storico (famiglia eliminata, creator/deleter, rejoin consentito solo se non eliminata); delete famiglia converte membership attive in `left` invece di cancellare hard.
+- 2026-02-13: Inviti hardening: validazione/accettazione invite bloccata se la famiglia è stata eliminata (response 410/errore coerente).
+- 2026-02-13: Frontend anti-pagina-bianca: redirect centralizzati verso `/impostazioni` quando utente autenticato ma senza `activeFamilyId` (home/login/layout/dashboard/invite/settings).
+- 2026-02-13: Impostazioni storico famiglie esteso: mostra chi ha creato la famiglia (nome/email), stato famiglia eliminata e chi l'ha eliminata; pulsante rientro disabilitato su famiglie eliminate.
+- 2026-02-13: Build verificate dopo refactor finale: backend (`prisma generate` + `tsc`) e frontend (`next build`) OK.

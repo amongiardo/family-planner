@@ -3,6 +3,8 @@ import prisma from '../prisma';
 
 async function resolveActiveFamily(req: Request) {
   if (!req.user) return null;
+  req.activeFamilyId = undefined;
+  req.activeFamilyRole = undefined;
 
   const requestedFamilyId =
     typeof req.headers['x-family-id'] === 'string'
@@ -29,10 +31,15 @@ async function resolveActiveFamily(req: Request) {
         familyId: true,
         role: true,
         status: true,
+        family: {
+          select: {
+            deletedAt: true,
+          },
+        },
       },
     });
 
-    if (membership && membership.status === 'active') {
+    if (membership && membership.status === 'active' && !membership.family.deletedAt) {
       (req.session as any).activeFamilyId = membership.familyId;
       req.activeFamilyId = membership.familyId;
       req.activeFamilyRole = membership.role;
@@ -41,7 +48,7 @@ async function resolveActiveFamily(req: Request) {
   }
 
   const fallback = await prisma.familyMember.findFirst({
-    where: { userId: req.user.id, status: 'active' },
+    where: { userId: req.user.id, status: 'active', family: { deletedAt: null } },
     orderBy: [{ createdAt: 'asc' }, { familyId: 'asc' }],
     select: {
       familyId: true,
@@ -49,7 +56,10 @@ async function resolveActiveFamily(req: Request) {
     },
   });
 
-  if (!fallback) return null;
+  if (!fallback) {
+    (req.session as any).activeFamilyId = undefined;
+    return null;
+  }
 
   (req.session as any).activeFamilyId = fallback.familyId;
   req.activeFamilyId = fallback.familyId;
@@ -57,7 +67,7 @@ async function resolveActiveFamily(req: Request) {
   return fallback;
 }
 
-export async function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+export async function isLoggedIn(req: Request, res: Response, next: NextFunction) {
   if (typeof req.isAuthenticated !== 'function') {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -67,8 +77,23 @@ export async function isAuthenticated(req: Request, res: Response, next: NextFun
   }
 
   try {
-    const active = await resolveActiveFamily(req);
-    if (!active) {
+    await resolveActiveFamily(req);
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (typeof req.isAuthenticated !== 'function') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!req.isAuthenticated() || !req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    await resolveActiveFamily(req);
+    if (!req.activeFamilyId) {
       return res.status(403).json({ error: 'No active family membership' });
     }
     return next();

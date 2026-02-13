@@ -31,6 +31,7 @@ export default function ImpostazioniPage() {
   const router = useRouter();
   const { user, refresh } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const hasActiveFamily = Boolean(user?.activeFamilyId);
   const [familyName, setFamilyName] = useState('');
   const [familyCity, setFamilyCity] = useState('');
   const [familyCityDebounced, setFamilyCityDebounced] = useState('');
@@ -55,12 +56,13 @@ export default function ImpostazioniPage() {
   const { data: family, isLoading } = useQuery<Family>({
     queryKey: ['family'],
     queryFn: familyApi.get,
+    enabled: hasActiveFamily,
   });
 
   const { data: invites, isLoading: invitesLoading } = useQuery({
     queryKey: ['invites'],
     queryFn: familyApi.getInvites,
-    enabled: isAdmin,
+    enabled: isAdmin && hasActiveFamily,
   });
 
   const { data: myFamilies, isLoading: familiesLoading } = useQuery({
@@ -104,8 +106,9 @@ export default function ImpostazioniPage() {
 
   const regenerateAuthCodeMutation = useMutation({
     mutationFn: familyApi.regenerateAuthCode,
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['family'] });
+      await refresh();
       setSuccess('Codice rigenerato');
       setTimeout(() => setSuccess(''), 3000);
     },
@@ -130,8 +133,12 @@ export default function ImpostazioniPage() {
   const createFamilyMutation = useMutation({
     mutationFn: familyApi.create,
     onSuccess: async (data) => {
-      if (typeof window !== 'undefined' && data.activeFamilyId) {
-        window.localStorage.setItem('activeFamilyId', data.activeFamilyId);
+      if (typeof window !== 'undefined') {
+        if (data.activeFamilyId) {
+          window.localStorage.setItem('activeFamilyId', data.activeFamilyId);
+        } else {
+          window.localStorage.removeItem('activeFamilyId');
+        }
       }
       await queryClient.invalidateQueries({ queryKey: ['family'] });
       await queryClient.invalidateQueries({ queryKey: ['family', 'mine'] });
@@ -206,7 +213,8 @@ export default function ImpostazioniPage() {
       queryClient.clear();
       setSuccess('Hai abbandonato la famiglia');
       setTimeout(() => setSuccess(''), 3000);
-      router.replace('/dashboard');
+      router.replace('/impostazioni');
+      router.refresh();
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -221,7 +229,8 @@ export default function ImpostazioniPage() {
       queryClient.clear();
       setSuccess('Rientro in famiglia completato');
       setTimeout(() => setSuccess(''), 3000);
-      router.replace('/dashboard');
+      router.replace('/impostazioni');
+      router.refresh();
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -296,7 +305,7 @@ export default function ImpostazioniPage() {
   };
 
   const handleCopyAuthCode = async () => {
-    const code = family?.authCode?.trim();
+    const code = user?.authCode?.trim();
     if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
@@ -347,7 +356,7 @@ export default function ImpostazioniPage() {
     );
   };
 
-  if (isLoading) {
+  if (isLoading && hasActiveFamily) {
     return (
       <DashboardLayout>
         <div className="text-center py-5">
@@ -391,7 +400,7 @@ export default function ImpostazioniPage() {
                 </Col>
                 <Col md={4}>
                   <div className="fw-bold">Città</div>
-                  <div className="text-muted">{family?.cityDisplayName || family?.city || 'Roma'}</div>
+                  <div className="text-muted">{family?.cityDisplayName || family?.city || '—'}</div>
                 </Col>
                 <Col md={4}>
                   <div className="fw-bold">Membri</div>
@@ -427,7 +436,7 @@ export default function ImpostazioniPage() {
               <InputGroup>
                 <Form.Control
                   type="text"
-                  value={family?.authCode || ''}
+                  value={user?.authCode || ''}
                   disabled
                   placeholder="—"
                   className="auth-code-display-soft"
@@ -436,7 +445,7 @@ export default function ImpostazioniPage() {
                   variant="outline-primary"
                   className="btn-primary-soft"
                   onClick={handleCopyAuthCode}
-                  disabled={!family?.authCode}
+                  disabled={!user?.authCode}
                   title="Copia codice"
                 >
                   {copiedAuthCode ? <FaCheck /> : <FaCopy />}
@@ -467,7 +476,9 @@ export default function ImpostazioniPage() {
           <Card className="mb-4">
             <Card.Header>Modifica Famiglia</Card.Header>
             <Card.Body>
-              {isAdmin ? (
+              {!hasActiveFamily ? (
+                <div className="text-muted">Seleziona una famiglia attiva per modificarne i dati.</div>
+              ) : isAdmin ? (
                 <Form onSubmit={(e) => e.preventDefault()}>
                 <Form.Group className="mb-3">
                   <Form.Label>Nome Famiglia</Form.Label>
@@ -624,6 +635,19 @@ export default function ImpostazioniPage() {
                         <div className="small text-muted">
                           Membri: {familyItem.membersCount} • Ruolo precedente: {familyItem.role === 'admin' ? 'Admin' : 'Member'}
                         </div>
+                        {(familyItem.creatorName || familyItem.creatorEmail) && (
+                          <div className="small text-muted">
+                            Creata da: {familyItem.creatorName || 'Utente'}{familyItem.creatorEmail ? ` (${familyItem.creatorEmail})` : ''}
+                          </div>
+                        )}
+                        {familyItem.familyDeletedAt && (
+                          <div className="small text-muted">
+                            Famiglia eliminata
+                            {familyItem.deletedByName || familyItem.deletedByEmail
+                              ? ` da ${familyItem.deletedByName || 'utente'}${familyItem.deletedByEmail ? ` (${familyItem.deletedByEmail})` : ''}`
+                              : ''}
+                          </div>
+                        )}
                       </div>
                       <div className="d-flex gap-2">
                         <Button
@@ -631,7 +655,7 @@ export default function ImpostazioniPage() {
                           variant="outline-primary"
                           className="btn-primary-soft"
                           onClick={() => rejoinFamilyMutation.mutate(familyItem.id)}
-                          disabled={rejoinFamilyMutation.isPending}
+                          disabled={rejoinFamilyMutation.isPending || !familyItem.canRejoin}
                         >
                           Rientra in Famiglia
                         </Button>
@@ -658,8 +682,9 @@ export default function ImpostazioniPage() {
         <Col lg={6}>
           <Card className="mb-4 settings-card">
             <Card.Header>Membri della Famiglia</Card.Header>
-            <ListGroup variant="flush" className="settings-list">
-              {family?.users.map((member) => (
+            {family?.users?.length ? (
+              <ListGroup variant="flush" className="settings-list">
+                {family.users.map((member) => (
                 <ListGroup.Item key={member.id} className="family-member-item">
                   {member.avatarUrl ? (
                     <Image
@@ -711,11 +736,21 @@ export default function ImpostazioniPage() {
                     </div>
                   )}
                 </ListGroup.Item>
-              ))}
-            </ListGroup>
+                ))}
+              </ListGroup>
+            ) : (
+              <Card.Body className="text-muted">Nessuna famiglia attiva selezionata.</Card.Body>
+            )}
           </Card>
 
-          {!isAdmin ? (
+          {!hasActiveFamily ? (
+            <Card className="mb-4">
+              <Card.Header>Inviti</Card.Header>
+              <Card.Body className="text-muted">
+                Seleziona una famiglia attiva per gestire inviti e membri.
+              </Card.Body>
+            </Card>
+          ) : !isAdmin ? (
             <Card className="mb-4">
               <Card.Header>Inviti</Card.Header>
               <Card.Body className="text-muted">

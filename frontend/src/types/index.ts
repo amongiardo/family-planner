@@ -20,6 +20,23 @@ export interface UserFamilyMembership {
   createdAt: string;
 }
 
+export interface FormerFamilyMembership {
+  id: string;
+  name: string;
+  city?: string;
+  role: 'admin' | 'member';
+  createdAt: string;
+  membersCount: number;
+  status: 'left';
+  leftAt?: string | null;
+  familyDeletedAt?: string | null;
+  creatorName?: string | null;
+  creatorEmail?: string | null;
+  deletedByName?: string | null;
+  deletedByEmail?: string | null;
+  canRejoin: boolean;
+}
+
 export interface Family {
   id: string;
   name: string;

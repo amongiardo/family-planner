@@ -14,8 +14,18 @@ interface OAuthProfile {
 async function attachInviteMembership(userId: string, email: string, inviteToken?: string) {
   if (!inviteToken) return;
 
-  const invite = await prisma.familyInvite.findUnique({ where: { token: inviteToken } });
+  const invite = await prisma.familyInvite.findUnique({
+    where: { token: inviteToken },
+    include: {
+      family: {
+        select: {
+          deletedAt: true,
+        },
+      },
+    },
+  });
   if (!invite || invite.usedAt || invite.expiresAt <= new Date()) return;
+  if (invite.family.deletedAt) return;
   if (invite.email.toLowerCase() !== email.toLowerCase()) return;
 
   await prisma.$transaction(async (tx) => {
@@ -79,6 +89,7 @@ async function findOrCreateUser(
     const family = await prisma.family.create({
       data: {
         name: `${profile.displayName}'s Family`,
+        createdByUserId: user.id,
       },
     });
 
