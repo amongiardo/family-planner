@@ -10,6 +10,14 @@ import { generateFamilyAuthCode, isValidFamilyAuthCode } from '../utils/familyAu
 const router = Router();
 
 type FamilyRole = 'admin' | 'member';
+type CitySelectionInput = {
+  name: string;
+  displayName?: string;
+  country?: string;
+  timezone?: string;
+  latitude?: number;
+  longitude?: number;
+};
 
 type InviteValidationResult =
   | { ok: true; invite: any }
@@ -20,6 +28,11 @@ function toFamilyResponse(family: any, role: FamilyRole, authCode?: string) {
     id: family.id,
     name: family.name,
     city: family.city,
+    cityDisplayName: family.cityDisplayName,
+    cityCountry: family.cityCountry,
+    cityTimezone: family.cityTimezone,
+    cityLatitude: family.cityLatitude,
+    cityLongitude: family.cityLongitude,
     authCode,
     createdAt: family.createdAt,
     users: (family.memberships || []).map((membership: any) => ({
@@ -30,6 +43,28 @@ function toFamilyResponse(family: any, role: FamilyRole, authCode?: string) {
       role: membership.role,
     })),
     role,
+  };
+}
+
+function normalizeCitySelection(input: unknown): CitySelectionInput | null {
+  if (!input || typeof input !== 'object') return null;
+
+  const payload = input as Record<string, unknown>;
+  const name = typeof payload.name === 'string' ? payload.name.trim() : '';
+  if (!name) return null;
+
+  const latitudeRaw = payload.latitude;
+  const longitudeRaw = payload.longitude;
+  const latitude = typeof latitudeRaw === 'number' ? latitudeRaw : Number(latitudeRaw);
+  const longitude = typeof longitudeRaw === 'number' ? longitudeRaw : Number(longitudeRaw);
+
+  return {
+    name,
+    displayName: typeof payload.displayName === 'string' ? payload.displayName.trim() : undefined,
+    country: typeof payload.country === 'string' ? payload.country.trim() : undefined,
+    timezone: typeof payload.timezone === 'string' ? payload.timezone.trim() : undefined,
+    latitude: Number.isFinite(latitude) ? latitude : undefined,
+    longitude: Number.isFinite(longitude) ? longitude : undefined,
   };
 }
 
@@ -184,15 +219,25 @@ router.post('/switch', isAuthenticated, async (req, res, next) => {
 // Create a new family and join as admin
 router.post('/create', isAuthenticated, async (req, res, next) => {
   try {
-    const { name, city, switchToNewFamily } = req.body ?? {};
+    const { name, city, citySelection, switchToNewFamily } = req.body ?? {};
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Family name is required' });
     }
 
+    const normalizedCitySelection = normalizeCitySelection(citySelection);
+    const normalizedCity =
+      normalizedCitySelection?.name ||
+      (typeof city === 'string' && city.trim() ? city.trim() : 'Roma');
+
     const family = await prisma.family.create({
       data: {
         name: name.trim(),
-        city: typeof city === 'string' && city.trim() ? city.trim() : 'Roma',
+        city: normalizedCity,
+        cityDisplayName: normalizedCitySelection?.displayName,
+        cityCountry: normalizedCitySelection?.country,
+        cityTimezone: normalizedCitySelection?.timezone,
+        cityLatitude: normalizedCitySelection?.latitude,
+        cityLongitude: normalizedCitySelection?.longitude,
       },
     });
 
@@ -215,6 +260,11 @@ router.post('/create', isAuthenticated, async (req, res, next) => {
         id: family.id,
         name: family.name,
         city: family.city,
+        cityDisplayName: family.cityDisplayName,
+        cityCountry: family.cityCountry,
+        cityTimezone: family.cityTimezone,
+        cityLatitude: family.cityLatitude,
+        cityLongitude: family.cityLongitude,
         createdAt: family.createdAt,
         role: 'admin',
       },
@@ -401,17 +451,39 @@ router.delete('/:familyId', isAuthenticated, async (req, res, next) => {
 router.put('/', isAuthenticated, requireAdmin, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
-    const { name, city } = req.body;
+    const { name, city, citySelection } = req.body;
 
     if ((!name || typeof name !== 'string') && (!city || typeof city !== 'string')) {
-      return res.status(400).json({ error: 'Name or city is required' });
+      if (!citySelection || typeof citySelection !== 'object') {
+        return res.status(400).json({ error: 'Name or city is required' });
+      }
     }
+
+    const normalizedCitySelection = normalizeCitySelection(citySelection);
 
     const family = await prisma.family.update({
       where: { id: familyId },
       data: {
         ...(name && typeof name === 'string' ? { name: name.trim() } : {}),
-        ...(city && typeof city === 'string' ? { city: city.trim() } : {}),
+        ...(normalizedCitySelection
+          ? {
+              city: normalizedCitySelection.name,
+              cityDisplayName: normalizedCitySelection.displayName,
+              cityCountry: normalizedCitySelection.country,
+              cityTimezone: normalizedCitySelection.timezone,
+              cityLatitude: normalizedCitySelection.latitude,
+              cityLongitude: normalizedCitySelection.longitude,
+            }
+          : city && typeof city === 'string'
+            ? {
+                city: city.trim(),
+                cityDisplayName: null,
+                cityCountry: null,
+                cityTimezone: null,
+                cityLatitude: null,
+                cityLongitude: null,
+              }
+            : {}),
       },
     });
 

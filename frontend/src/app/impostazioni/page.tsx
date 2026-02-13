@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Card,
@@ -20,11 +20,11 @@ import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { FaEnvelope, FaTrash, FaCopy, FaCheck, FaPaste } from 'react-icons/fa';
 import DashboardLayout from '@/components/DashboardLayout';
-import { familyApi } from '@/lib/api';
+import { familyApi, weatherApi } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import StatusModal from '@/components/StatusModal';
 import ConfirmModal from '@/components/ConfirmModal';
-import type { Family } from '@/types';
+import type { CitySearchResult, Family } from '@/types';
 
 export default function ImpostazioniPage() {
   const queryClient = useQueryClient();
@@ -33,8 +33,12 @@ export default function ImpostazioniPage() {
   const isAdmin = user?.role === 'admin';
   const [familyName, setFamilyName] = useState('');
   const [familyCity, setFamilyCity] = useState('');
+  const [familyCityDebounced, setFamilyCityDebounced] = useState('');
+  const [selectedFamilyCity, setSelectedFamilyCity] = useState<CitySearchResult | null>(null);
   const [newFamilyName, setNewFamilyName] = useState('');
   const [newFamilyCity, setNewFamilyCity] = useState('');
+  const [newFamilyCityDebounced, setNewFamilyCityDebounced] = useState('');
+  const [selectedNewFamilyCity, setSelectedNewFamilyCity] = useState<CitySearchResult | null>(null);
   const [showCreateFamilyModal, setShowCreateFamilyModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
@@ -62,6 +66,28 @@ export default function ImpostazioniPage() {
   const { data: myFamilies, isLoading: familiesLoading } = useQuery({
     queryKey: ['family', 'mine'],
     queryFn: familyApi.mine,
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => setFamilyCityDebounced(familyCity.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [familyCity]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setNewFamilyCityDebounced(newFamilyCity.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [newFamilyCity]);
+
+  const { data: familyCitySearchResults } = useQuery({
+    queryKey: ['weather', 'cities', familyCityDebounced, 'world'],
+    queryFn: () => weatherApi.searchCities(familyCityDebounced, 'world'),
+    enabled: familyCityDebounced.length >= 2,
+  });
+
+  const { data: newFamilyCitySearchResults } = useQuery({
+    queryKey: ['weather', 'cities', newFamilyCityDebounced, 'world'],
+    queryFn: () => weatherApi.searchCities(newFamilyCityDebounced, 'world'),
+    enabled: newFamilyCityDebounced.length >= 2,
   });
 
   const updateFamilyMutation = useMutation({
@@ -113,6 +139,7 @@ export default function ImpostazioniPage() {
       await refresh();
       setNewFamilyName('');
       setNewFamilyCity('');
+      setSelectedNewFamilyCity(null);
       setShowCreateFamilyModal(false);
       setSuccess('Nuova famiglia creata');
       setTimeout(() => setSuccess(''), 3000);
@@ -227,8 +254,23 @@ export default function ImpostazioniPage() {
       return;
     }
     if (!familyCity.trim()) return;
-    updateFamilyMutation.mutate({ city: familyCity.trim() });
+    if (selectedFamilyCity) {
+      updateFamilyMutation.mutate({
+        city: selectedFamilyCity.name,
+        citySelection: {
+          name: selectedFamilyCity.name,
+          displayName: selectedFamilyCity.displayName,
+          country: selectedFamilyCity.country,
+          timezone: selectedFamilyCity.timezone,
+          latitude: selectedFamilyCity.latitude,
+          longitude: selectedFamilyCity.longitude,
+        },
+      });
+    } else {
+      updateFamilyMutation.mutate({ city: familyCity.trim() });
+    }
     setFamilyCity('');
+    setSelectedFamilyCity(null);
   };
 
   const handleInvite = (e: React.FormEvent) => {
@@ -278,6 +320,33 @@ export default function ImpostazioniPage() {
     }
   };
 
+  const renderCitySuggestions = (
+    suggestions: CitySearchResult[] | undefined,
+    onSelect: (city: CitySearchResult) => void
+  ) => {
+    if (!suggestions?.length) return null;
+    return (
+      <ListGroup className="mt-2">
+        {suggestions.map((city) => {
+          const key = `${city.name}-${city.latitude}-${city.longitude}-${city.timezone}`;
+          return (
+            <ListGroup.Item
+              key={key}
+              action
+              as="button"
+              type="button"
+              onClick={() => onSelect(city)}
+              className="py-2"
+            >
+              <div className="fw-medium">{city.displayName || city.name}</div>
+              {city.timezone && <small className="text-muted">{city.timezone}</small>}
+            </ListGroup.Item>
+          );
+        })}
+      </ListGroup>
+    );
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -310,33 +379,88 @@ export default function ImpostazioniPage() {
         onClose={() => setSuccess('')}
       />
 
-      <Card className="mb-4">
-        <Card.Header>Riepilogo</Card.Header>
-        <Card.Body>
-          <Row className="g-3">
-            <Col md={4}>
-              <div className="fw-bold">Famiglia</div>
-              <div className="text-muted">{family?.name || '—'}</div>
-            </Col>
-            <Col md={4}>
-              <div className="fw-bold">Città</div>
-              <div className="text-muted">{family?.city || 'Roma'}</div>
-            </Col>
-            <Col md={4}>
-              <div className="fw-bold">Membri</div>
-              {family?.users && family.users.length > 0 && (
-                <div className="mt-2">
-                  {family.users.map((member) => (
-                    <div key={member.id} className="text-muted small">
-                      {member.name}
+      <Row className="g-4 mb-4">
+        <Col lg={6}>
+          <Card className="h-100">
+            <Card.Header>Riepilogo</Card.Header>
+            <Card.Body>
+              <Row className="g-3">
+                <Col md={4}>
+                  <div className="fw-bold">Famiglia</div>
+                  <div className="text-muted">{family?.name || '—'}</div>
+                </Col>
+                <Col md={4}>
+                  <div className="fw-bold">Città</div>
+                  <div className="text-muted">{family?.cityDisplayName || family?.city || 'Roma'}</div>
+                </Col>
+                <Col md={4}>
+                  <div className="fw-bold">Membri</div>
+                  {family?.users && family.users.length > 0 && (
+                    <div className="mt-2">
+                      {family.users.map((member) => (
+                        <div key={member.id} className="text-muted small">
+                          {member.name}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+                  )}
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col lg={6}>
+          <Card className="h-100">
+            <Card.Header>Profilo Utente</Card.Header>
+            <Card.Body>
+              <Row className="g-3 mb-3">
+                <Col md={6}>
+                  <div className="fw-bold">Nome</div>
+                  <div className="text-muted">{user?.name || '—'}</div>
+                </Col>
+                <Col md={6}>
+                  <div className="fw-bold">Email</div>
+                  <div className="text-muted">{user?.email || '—'}</div>
+                </Col>
+              </Row>
+              <Form.Label className="fw-bold">Codice di autenticazione utente</Form.Label>
+              <InputGroup>
+                <Form.Control
+                  type="text"
+                  value={family?.authCode || ''}
+                  disabled
+                  placeholder="—"
+                  className="auth-code-display-soft"
+                />
+                <Button
+                  variant="outline-primary"
+                  className="btn-primary-soft"
+                  onClick={handleCopyAuthCode}
+                  disabled={!family?.authCode}
+                  title="Copia codice"
+                >
+                  {copiedAuthCode ? <FaCheck /> : <FaCopy />}
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  className="btn-primary-soft"
+                  onClick={() => regenerateAuthCodeMutation.mutate()}
+                  disabled={regenerateAuthCodeMutation.isPending}
+                >
+                  {regenerateAuthCodeMutation.isPending ? (
+                    <Spinner size="sm" animation="border" />
+                  ) : (
+                    'Rigenera'
+                  )}
+                </Button>
+              </InputGroup>
+              <Form.Text className="text-muted">
+                È personale per account (stessa email), uguale su tutte le famiglie.
+              </Form.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
       <Row>
         <Col lg={6}>
@@ -344,7 +468,7 @@ export default function ImpostazioniPage() {
             <Card.Header>Modifica Famiglia</Card.Header>
             <Card.Body>
               {isAdmin ? (
-                <Form>
+                <Form onSubmit={(e) => e.preventDefault()}>
                 <Form.Group className="mb-3">
                   <Form.Label>Nome Famiglia</Form.Label>
                   <InputGroup>
@@ -375,9 +499,16 @@ export default function ImpostazioniPage() {
                     <Form.Control
                       type="text"
                       value={familyCity}
-                      onChange={(e) => setFamilyCity(e.target.value)}
+                      onChange={(e) => {
+                        setFamilyCity(e.target.value);
+                        setSelectedFamilyCity(null);
+                      }}
                       className="placeholder-soft"
-                      placeholder={family?.city ? `Attuale: ${family.city}` : 'es: Roma'}
+                      placeholder={
+                        family?.cityDisplayName || family?.city
+                          ? `Attuale: ${family?.cityDisplayName || family?.city}`
+                          : 'Cerca città...'
+                      }
                     />
                     <Button
                       type="button"
@@ -392,6 +523,10 @@ export default function ImpostazioniPage() {
                       )}
                     </Button>
                   </InputGroup>
+                  {renderCitySuggestions(familyCitySearchResults?.results, (city) => {
+                    setFamilyCity(city.displayName || city.name);
+                    setSelectedFamilyCity(city);
+                  })}
                 </Form.Group>
               </Form>
               ) : (
@@ -400,41 +535,6 @@ export default function ImpostazioniPage() {
                 </div>
               )}
 
-              <div className="mt-3">
-                <Form.Label>Codice di autenticazione utente</Form.Label>
-                <InputGroup>
-                  <Form.Control
-                    type="text"
-                    value={family?.authCode || ''}
-                    disabled
-                    placeholder="—"
-                  />
-                  <Button
-                    variant="outline-primary"
-                    className="btn-primary-soft"
-                    onClick={handleCopyAuthCode}
-                    disabled={!family?.authCode}
-                    title="Copia codice"
-                  >
-                    {copiedAuthCode ? <FaCheck /> : <FaCopy />}
-                  </Button>
-                  <Button
-                    variant="outline-primary"
-                    className="btn-primary-soft"
-                    onClick={() => regenerateAuthCodeMutation.mutate()}
-                    disabled={regenerateAuthCodeMutation.isPending}
-                  >
-                    {regenerateAuthCodeMutation.isPending ? (
-                      <Spinner size="sm" animation="border" />
-                    ) : (
-                      'Rigenera'
-                    )}
-                  </Button>
-                </InputGroup>
-                <Form.Text className="text-muted">
-                  È personale per account (stessa email), uguale su tutte le famiglie.
-                </Form.Text>
-              </div>
             </Card.Body>
           </Card>
 
@@ -862,6 +962,8 @@ export default function ImpostazioniPage() {
         onHide={() => {
           if (createFamilyMutation.isPending) return;
           setShowCreateFamilyModal(false);
+          setNewFamilyCity('');
+          setSelectedNewFamilyCity(null);
         }}
         centered
       >
@@ -879,7 +981,17 @@ export default function ImpostazioniPage() {
               }
               createFamilyMutation.mutate({
                 name: newFamilyName.trim(),
-                city: newFamilyCity.trim() || undefined,
+                city: selectedNewFamilyCity?.name || newFamilyCity.trim() || undefined,
+                citySelection: selectedNewFamilyCity
+                  ? {
+                      name: selectedNewFamilyCity.name,
+                      displayName: selectedNewFamilyCity.displayName,
+                      country: selectedNewFamilyCity.country,
+                      timezone: selectedNewFamilyCity.timezone,
+                      latitude: selectedNewFamilyCity.latitude,
+                      longitude: selectedNewFamilyCity.longitude,
+                    }
+                  : undefined,
                 switchToNewFamily: false,
               });
             }}
@@ -899,16 +1011,27 @@ export default function ImpostazioniPage() {
               <Form.Control
                 type="text"
                 value={newFamilyCity}
-                onChange={(e) => setNewFamilyCity(e.target.value)}
+                onChange={(e) => {
+                  setNewFamilyCity(e.target.value);
+                  setSelectedNewFamilyCity(null);
+                }}
                 className="placeholder-soft"
-                placeholder="es: Roma"
+                placeholder="Cerca città..."
               />
+              {renderCitySuggestions(newFamilyCitySearchResults?.results, (city) => {
+                setNewFamilyCity(city.displayName || city.name);
+                setSelectedNewFamilyCity(city);
+              })}
             </Form.Group>
             <div className="d-flex justify-content-end gap-2 mt-4">
               <Button
                 variant="outline-danger"
                 className="btn-danger-soft"
-                onClick={() => setShowCreateFamilyModal(false)}
+                onClick={() => {
+                  setShowCreateFamilyModal(false);
+                  setNewFamilyCity('');
+                  setSelectedNewFamilyCity(null);
+                }}
                 disabled={createFamilyMutation.isPending}
               >
                 Annulla

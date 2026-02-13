@@ -143,3 +143,8 @@ Changelog
 - 2026-02-13: Impostazioni (elimina famiglia): modale con select destinazione precompilata automaticamente su una famiglia valida.
 - 2026-02-13: UX auth code: aggiunto pulsante `Incolla` in tutti i punti di conferma (ConfirmModal condivisa + modali calendario svuota tutto/intervallo + modale elimina famiglia).
 - 2026-02-13: `scripts/dev_start.sh` ora chiude processi node in ascolto su porte 3000-3003 prima dell'avvio per evitare `EADDRINUSE`.
+- 2026-02-13: Dashboard: visualizzazione città aggiornata con `cityDisplayName` (se disponibile) per coerenza con selezione autocomplete.
+- 2026-02-13: Meteo città refactor: introdotti metadati città famiglia (`displayName/country/timezone/lat/lon`) e nuova migrazione `20260213192000_family_city_metadata`.
+- 2026-02-13: Backend weather: nuovo endpoint `GET /api/weather/cities` per ricerca città on-the-fly (Open-Meteo geocoding) e forecast basato su coordinate salvate quando presenti.
+- 2026-02-13: Impostazioni: autocomplete città globale su "Modifica Famiglia" e "Aggiungi Famiglia", con suggerimenti cliccabili disambiguati.
+- 2026-02-13: UX form città fix: rimossi radio Mondo/Italia e bloccato submit involontario della form su click suggerimenti (`type=button`), evitando reload GET su `/impostazioni`.

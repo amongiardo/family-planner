@@ -21,6 +21,17 @@ Questo file traccia in modo sintetico le modifiche schema/database applicate tra
 - Effetto:
   - codice di autenticazione distruttivo legato all'utente/account (email), condiviso su tutte le famiglie.
 
+### `20260213192000_family_city_metadata`
+- Tabella: `families`
+- Aggiunte colonne:
+  - `city_display_name` (`TEXT`)
+  - `city_country` (`TEXT`)
+  - `city_timezone` (`TEXT`)
+  - `city_latitude` (`DOUBLE PRECISION`)
+  - `city_longitude` (`DOUBLE PRECISION`)
+- Effetto:
+  - supporto selezione città disambiguata (mondo) e meteo affidabile su coordinate/timezone senza ambiguità.
+
 ## Note operative
 - Per allineare DB locale a queste modifiche usare:
   - `./scripts/update_local.sh`

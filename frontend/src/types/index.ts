@@ -24,10 +24,24 @@ export interface Family {
   id: string;
   name: string;
   city?: string;
+  cityDisplayName?: string;
+  cityCountry?: string;
+  cityTimezone?: string;
+  cityLatitude?: number;
+  cityLongitude?: number;
   authCode?: string;
   createdAt: string;
   role?: 'admin' | 'member';
   users: FamilyMember[];
+}
+
+export interface CitySearchResult {
+  name: string;
+  displayName: string;
+  country?: string;
+  timezone?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface FamilyMember {

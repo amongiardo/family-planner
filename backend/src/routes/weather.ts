@@ -28,28 +28,86 @@ const weatherCodeMap: Record<number, string> = {
   99: 'Temporale con grandine intensa',
 };
 
+router.get('/cities', isAuthenticated, async (req, res, next) => {
+  try {
+    const query = typeof req.query.query === 'string' ? req.query.query.trim() : '';
+    const scope = typeof req.query.scope === 'string' ? req.query.scope.trim().toLowerCase() : 'world';
+
+    if (query.length < 2) {
+      return res.json({ results: [] });
+    }
+
+    const countryCode = scope === 'it' ? 'IT' : undefined;
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+      query
+    )}&count=8&language=it&format=json${countryCode ? `&countryCode=${countryCode}` : ''}`;
+
+    const geoResp = await fetch(geoUrl);
+    if (!geoResp.ok) {
+      return res.status(502).json({ error: 'City search failed' });
+    }
+
+    const geoData = (await geoResp.json()) as any;
+    const results = Array.isArray(geoData?.results) ? geoData.results : [];
+
+    res.json({
+      results: results.map((place: any) => {
+        const name = place?.name || '';
+        const admin = place?.admin1 || place?.admin2 || place?.admin3 || '';
+        const country = place?.country || '';
+        const displayName = [name, admin, country].filter(Boolean).join(', ');
+
+        return {
+          name,
+          displayName,
+          country,
+          timezone: place?.timezone || undefined,
+          latitude: place?.latitude,
+          longitude: place?.longitude,
+        };
+      }),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/', isAuthenticated, async (req, res, next) => {
   try {
     const familyId = getFamilyId(req);
     const family = await prisma.family.findUnique({ where: { id: familyId } });
 
     const city = family?.city || 'Roma';
+    const familyLatitude = family?.cityLatitude;
+    const familyLongitude = family?.cityLongitude;
+    let latitude = familyLatitude;
+    let longitude = familyLongitude;
+    let resolvedCity = family?.cityDisplayName || city;
+    let timezone = family?.cityTimezone || 'Europe/Rome';
 
-    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-      city
-    )}&count=1&language=it&format=json`;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+        city
+      )}&count=1&language=it&format=json`;
 
-    const geoResp = await fetch(geoUrl);
-    if (!geoResp.ok) {
-      return res.status(502).json({ error: 'Weather geocoding failed' });
+      const geoResp = await fetch(geoUrl);
+      if (!geoResp.ok) {
+        return res.status(502).json({ error: 'Weather geocoding failed' });
+      }
+      const geoData = (await geoResp.json()) as any;
+      const place = geoData?.results?.[0];
+      if (!place) {
+        return res.status(404).json({ error: 'City not found' });
+      }
+
+      latitude = place.latitude;
+      longitude = place.longitude;
+      timezone = place.timezone || timezone;
+      const displayName = [place.name, place.admin1, place.country].filter(Boolean).join(', ');
+      resolvedCity = displayName || place.name || city;
     }
-    const geoData = (await geoResp.json()) as any;
-    const place = geoData?.results?.[0];
-    if (!place) {
-      return res.status(404).json({ error: 'City not found' });
-    }
 
-    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,weather_code&timezone=Europe%2FRome`;
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=${encodeURIComponent(timezone)}`;
     const forecastResp = await fetch(forecastUrl);
     if (!forecastResp.ok) {
       return res.status(502).json({ error: 'Weather fetch failed' });
@@ -62,7 +120,7 @@ router.get('/', isAuthenticated, async (req, res, next) => {
     const description = typeof code === 'number' ? weatherCodeMap[code] || 'Meteo' : 'Meteo';
 
     res.json({
-      city: place.name || city,
+      city: resolvedCity,
       temperature,
       description,
     });

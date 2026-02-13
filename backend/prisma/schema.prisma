@@ -8,11 +8,16 @@ datasource db {
 }
 
 model Family {
-  id        String   @id @default(uuid())
-  name      String
-  city      String   @default("Roma")
-  authCode  String?  @map("auth_code") @db.VarChar(5)
-  createdAt DateTime @default(now()) @map("created_at")
+  id              String   @id @default(uuid())
+  name            String
+  city            String   @default("Roma")
+  cityDisplayName String?  @map("city_display_name")
+  cityCountry     String?  @map("city_country")
+  cityTimezone    String?  @map("city_timezone")
+  cityLatitude    Float?   @map("city_latitude")
+  cityLongitude   Float?   @map("city_longitude")
+  authCode        String?  @map("auth_code") @db.VarChar(5)
+  createdAt       DateTime @default(now()) @map("created_at")
 
   memberships   FamilyMember[]
   dishes        Dish[]

@@ -1,4 +1,4 @@
-import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, FamilyInvite } from '@/types';
+import { Dish, Family, MealPlan, MealOut, ShoppingList, Suggestion, User, FamilyInvite, CitySearchResult } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -93,7 +93,19 @@ export const familyApi = {
       method: 'POST',
       body: JSON.stringify({ familyId }),
     }),
-  create: (data: { name: string; city?: string; switchToNewFamily?: boolean }) =>
+  create: (data: {
+    name: string;
+    city?: string;
+    citySelection?: {
+      name: string;
+      displayName?: string;
+      country?: string;
+      timezone?: string;
+      latitude?: number;
+      longitude?: number;
+    };
+    switchToNewFamily?: boolean;
+  }) =>
     fetchApi<{
       family: { id: string; name: string; city?: string; createdAt: string; role: 'admin' | 'member' };
       activeFamilyId: string;
@@ -119,7 +131,18 @@ export const familyApi = {
     fetchApi<{ success: boolean }>(`/api/family/${familyId}/former-membership`, {
       method: 'DELETE',
     }),
-  update: (data: { name?: string; city?: string }) => fetchApi<Family>('/api/family', {
+  update: (data: {
+    name?: string;
+    city?: string;
+    citySelection?: {
+      name: string;
+      displayName?: string;
+      country?: string;
+      timezone?: string;
+      latitude?: number;
+      longitude?: number;
+    };
+  }) => fetchApi<Family>('/api/family', {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
@@ -149,6 +172,10 @@ export const familyApi = {
 // Weather
 export const weatherApi = {
   get: () => fetchApi<{ city: string; temperature?: number; description?: string }>('/api/weather'),
+  searchCities: (query: string, scope: 'world' | 'it' = 'world') =>
+    fetchApi<{ results: CitySearchResult[] }>(
+      `/api/weather/cities?query=${encodeURIComponent(query)}&scope=${scope}`
+    ),
 };
 
 // Stats

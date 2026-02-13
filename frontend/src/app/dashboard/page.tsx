@@ -19,9 +19,17 @@ export default function DashboardPage() {
     queryKey: ['family'],
     queryFn: familyApi.get,
   });
-  const city = family?.city || 'Roma';
+  const city = family?.cityDisplayName || family?.city || 'Roma';
   const { data: weather } = useQuery({
-    queryKey: ['weather', city],
+    queryKey: [
+      'weather',
+      family?.id,
+      family?.city,
+      family?.cityDisplayName,
+      family?.cityLatitude,
+      family?.cityLongitude,
+      family?.cityTimezone,
+    ],
     queryFn: () => weatherApi.get(),
   });
   const initialWeekStart = startOfWeek(today, { weekStartsOn: 1 });
