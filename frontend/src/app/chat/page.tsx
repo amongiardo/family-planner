@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Row, Spinner } from 'react-bootstrap';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -18,6 +18,8 @@ export default function ChatPage() {
   const [manualThreadMemberIds, setManualThreadMemberIds] = useState<string[]>([]);
   const [privateDraftByMemberId, setPrivateDraftByMemberId] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
+  const familyMessagesRef = useRef<HTMLDivElement | null>(null);
+  const privateMessagesRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const { data: family } = useQuery({
     queryKey: ['family'],
@@ -154,6 +156,13 @@ export default function ChatPage() {
     () => otherMembers.filter((member) => !threadMembersSet.has(member.id)),
     [otherMembers, threadMembersSet]
   );
+  const privateThreadSignature = useMemo(
+    () =>
+      privateThreadMembers
+        .map((member) => `${member.id}:${privateThreadMessagesByMemberId[member.id]?.length || 0}`)
+        .join('|'),
+    [privateThreadMembers, privateThreadMessagesByMemberId]
+  );
 
   useEffect(() => {
     const validIds = new Set(otherMembers.map((member) => member.id));
@@ -170,6 +179,20 @@ export default function ChatPage() {
       setNewPrivateMemberId(privateAvailableMembers[0].id);
     }
   }, [newPrivateMemberId, privateAvailableMembers]);
+
+  useEffect(() => {
+    const node = familyMessagesRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [familyChatMessages.length]);
+
+  useEffect(() => {
+    for (const member of privateThreadMembers) {
+      const node = privateMessagesRefs.current[member.id];
+      if (!node) continue;
+      node.scrollTop = node.scrollHeight;
+    }
+  }, [privateThreadMembers, privateThreadSignature]);
 
   const submitFamilyMessage = () => {
     const trimmed = familyContent.trim();
@@ -231,7 +254,7 @@ export default function ChatPage() {
           <Card className="settings-card">
             <Card.Header>Chat Famiglia</Card.Header>
             <Card.Body>
-              <div style={{ maxHeight: '52vh', overflowY: 'auto' }} className="mb-3">
+              <div ref={familyMessagesRef} style={{ height: '240px', overflowY: 'auto' }} className="mb-3">
                 {isLoading ? (
                   <div className="text-center py-4">
                     <Spinner animation="border" variant="success" />
@@ -353,7 +376,13 @@ export default function ChatPage() {
                   </Badge>
                 </Card.Header>
                 <Card.Body>
-                  <div style={{ maxHeight: '35vh', overflowY: 'auto' }} className="mb-3">
+                  <div
+                    ref={(node) => {
+                      privateMessagesRefs.current[member.id] = node;
+                    }}
+                    style={{ height: '240px', overflowY: 'auto' }}
+                    className="mb-3"
+                  >
                     {isLoading ? (
                       <div className="text-center py-4">
                         <Spinner animation="border" variant="success" />
