@@ -200,6 +200,8 @@ export const notificationsApi = {
     fetchApi<{ success: boolean }>(`/api/notifications/${id}/read`, { method: 'POST' }),
   markAllRead: () =>
     fetchApi<{ success: boolean }>('/api/notifications/read-all', { method: 'POST' }),
+  deleteRead: () =>
+    fetchApi<{ success: boolean; deletedCount: number }>('/api/notifications/read', { method: 'DELETE' }),
 };
 
 export const chatApi = {

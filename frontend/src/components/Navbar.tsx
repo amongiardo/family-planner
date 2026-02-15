@@ -40,6 +40,11 @@ export default function Navbar() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
+  const deleteReadMutation = useMutation({
+    mutationFn: notificationsApi.deleteRead,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
   const handleSwitchFamily = async (familyId: string) => {
     if (!user || familyId === user.activeFamilyId) return;
     await familyApi.switchActive(familyId);
@@ -103,14 +108,24 @@ export default function Navbar() {
               >
                 <div className="notifications-menu-header d-flex justify-content-between align-items-center">
                   <strong className="notifications-menu-title">Notifiche</strong>
-                  <button
-                    type="button"
-                    className="notifications-readall-btn"
-                    onClick={() => markAllReadMutation.mutate()}
-                    disabled={markAllReadMutation.isPending}
-                  >
-                    Segna tutte lette
-                  </button>
+                  <div className="notifications-menu-actions d-flex align-items-center gap-2">
+                    <button
+                      type="button"
+                      className="notifications-readall-btn"
+                      onClick={() => markAllReadMutation.mutate()}
+                      disabled={markAllReadMutation.isPending || deleteReadMutation.isPending}
+                    >
+                      Segna tutte lette
+                    </button>
+                    <button
+                      type="button"
+                      className="notifications-readall-btn"
+                      onClick={() => deleteReadMutation.mutate()}
+                      disabled={markAllReadMutation.isPending || deleteReadMutation.isPending}
+                    >
+                      Elimina lette
+                    </button>
+                  </div>
                 </div>
                 <NavDropdown.Divider />
                 {notificationsQuery.data?.items?.length ? (

@@ -768,6 +768,8 @@ body::after {
 }
 
 .app-navbar {
+  position: relative;
+  z-index: 3000;
   background: rgba(255, 255, 255, 0.18) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.35);
   backdrop-filter: blur(14px);
@@ -792,6 +794,7 @@ body::after {
 }
 
 .app-navbar .dropdown-menu {
+  z-index: 3500;
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(0, 0, 0, 0.08);
 }
@@ -807,6 +810,7 @@ body::after {
 }
 
 .app-navbar .notifications-dropdown .dropdown-menu {
+  z-index: 4000;
   min-width: 340px;
   background: linear-gradient(180deg, rgba(26, 91, 194, 0.96), rgba(17, 69, 156, 0.95));
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -814,6 +818,11 @@ body::after {
 
 .app-navbar .notifications-menu-header {
   padding: 10px 12px;
+}
+
+.app-navbar .notifications-menu-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .app-navbar .notifications-menu-title {
@@ -843,24 +852,34 @@ body::after {
 }
 
 .app-navbar .notifications-item {
-  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(203, 212, 225, 0.72);
 }
 
 .app-navbar .notifications-item:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.22);
   color: #fff;
 }
 
 .app-navbar .notifications-item-unread {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.app-navbar .notifications-item-title {
+  background: rgba(77, 158, 255, 0.52);
   color: #fff;
 }
 
+.app-navbar .notifications-item-title {
+  color: rgba(203, 212, 225, 0.72);
+}
+
 .app-navbar .notifications-item-message {
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(203, 212, 225, 0.62);
+}
+
+.app-navbar .notifications-item-unread .notifications-item-title {
+  color: #fff;
+}
+
+.app-navbar .notifications-item-unread .notifications-item-message {
+  color: rgba(255, 255, 255, 0.84);
 }
 
 .app-navbar .notifications-empty {

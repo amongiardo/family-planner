@@ -64,4 +64,21 @@ router.post('/read-all', isLoggedIn, async (req, res, next) => {
   }
 });
 
+router.delete('/read', isLoggedIn, async (req, res, next) => {
+  try {
+    const userId = req.user!.id;
+
+    const deleted = await prisma.notification.deleteMany({
+      where: {
+        userId,
+        isRead: true,
+      },
+    });
+
+    res.json({ success: true, deletedCount: deleted.count });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
